@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Jobs are public read-only (written by Cloud Functions).
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // CVs: allow creation and read. Allow only approval updates (no deletes).
+    match /cvs/{cvId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if request.resource.data.diff(resource.data).changedKeys()
+        .hasOnly(["downloadApproved", "updatedAt"]);
+      allow delete: if false;
+    }
+
+    // QR codes: public create/read.
+    match /qrcodes/{qrId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    // Cover letters: public create/read.
+    match /letters/{letterId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    // Default deny.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Build a student CV, preview it live, download as PDF, and save to Firebase Firestore."
+    />
+    <meta
+      name="keywords"
+      content="CV builder Kenya, student resume, JobSeekAfrica"
+    />
+    <meta name="author" content="JobSeekAfrica" />
+    <title>CV Builder | JobSeekAfrica</title>
+    <link rel="icon" type="image/png" href="assets/logo.png" />
+    <link rel="apple-touch-icon" href="assets/logo.png" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav-bar">
+        <a class="logo" href="index.html">
+          <img src="assets/logo.png" alt="JobSeekAfrica logo" class="logo-mark" />
+          <span>JobSeekAfrica</span>
+        </a>
+        <nav class="nav" aria-label="Primary">
+          <a href="cvbuilder.html">CV Builder</a>
+          <a href="coverletter.html">Cover Letter</a>
+          <a href="jobs.html">Job Listings</a>
+          <a href="qr.html">QR Generator</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container page">
+      <section class="page-header fade-up" style="--delay: 0.1s">
+        <h1>CV Builder</h1>
+        <p>Fill in your details, preview your CV, and download to PDF.</p>
+        <div class="notice">
+          <strong>Tip:</strong> Use commas or new lines to separate skills,
+          education, and experience entries.
+        </div>
+      </section>
+
+      <div class="grid-2 fade-up" style="--delay: 0.2s">
+        <form id="cvForm" class="card form-card">
+          <label for="fullName">Full Name</label>
+          <input id="fullName" name="fullName" type="text" placeholder="Purine Mwero" required />
+
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="purine@gmail.com" required />
+
+          <label for="phone">Phone</label>
+          <input id="phone" name="phone" type="tel" placeholder="+254 700 000 000" required />
+
+          <label for="skills">Skills</label>
+          <textarea id="skills" name="skills" placeholder="Marketing, Excel, Public speaking"></textarea>
+
+          <label for="education">Education</label>
+          <textarea id="education" name="education" placeholder="BSc in Business, University of Nairobi (2022)"></textarea>
+
+          <label for="experience">Experience</label>
+          <textarea
+            id="experience"
+            name="experience"
+            placeholder="Intern, ABC Company - Managed social media campaigns"
+          ></textarea>
+
+          <div class="button-row">
+            <button type="button" id="saveCvBtn" class="btn">Save CV</button>
+            <button type="button" id="downloadPdfBtn" class="btn btn-secondary">Download PDF</button>
+            <button type="button" id="generateQrBtn" class="btn btn-ghost">Generate QR</button>
+          </div>
+          <p id="cvStatus" class="helper"></p>
+        </form>
+
+        <div class="card preview-card">
+          <div class="cv-preview" id="cvPreview">
+            <h2 id="previewName">Your Name</h2>
+            <p id="previewContact" class="helper">email@example.com | +254 700 000 000</p>
+
+            <h3>Skills</h3>
+            <ul id="previewSkills">
+              <li>Add your key skills.</li>
+            </ul>
+
+            <h3>Education</h3>
+            <ul id="previewEducation">
+              <li>List your latest education details.</li>
+            </ul>
+
+            <h3>Experience</h3>
+            <ul id="previewExperience">
+              <li>Share relevant internship or job experience.</li>
+            </ul>
+          </div>
+
+          <div class="cv-link">
+            <label for="cvLink"><strong>Shareable CV Link</strong></label>
+            <input id="cvLink" type="text" readonly placeholder="Save your CV to generate a link" />
+            <div class="button-row">
+              <button type="button" id="copyLinkBtn" class="btn btn-ghost">Copy Link</button>
+            </div>
+            <div id="cvQr" class="qr-output"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Copyright (c) 2026 JobSeekAfrica. All rights reserved.</p>
+        <p>Contact: hello@jobseekafrica.com | Nairobi, Kenya | +254 700 000 000</p>
+      </div>
+    </footer>
+
+    <script>
+      // window.__ENV__ can be injected via env.js or hosting environment.
+      window.__ENV__ = window.__ENV__ || {};
+    </script>
+    <!-- Optional: create env.js from .env and include it before the app scripts -->
+    <script src="env.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script type="module" src="js/cv.js"></script>
+  </body>
+</html>
