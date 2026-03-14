@@ -82,24 +82,22 @@ async function fetchCareerjetJobs(pages, perPage, keyword, location, userIp, use
     const data = await response.json();
     if (!data.jobs || !Array.isArray(data.jobs)) break;
 
-    const normalized = data.jobs.map((job, index) => {
-      return {
-        id: `careerjet-${page}-${index}`,
-        title: job.title || "Untitled Role",
-        company: job.company || job.site || "Company",
-        location: job.locations || "Kenya",
-        applyUrl: job.url || "#",
-        deadline: job.date ? new Date(job.date).toISOString() : null,
-        createdAt: job.date ? new Date(job.date).toISOString() : null,
-        source: "Careerjet",
-        category: job.category || "General",
-        type: normalizeType(job.type || job.title),
-        description: job.description
-          ? job.description.replace(/\s+/g, " ").slice(0, 140) + "..."
-          : "",
-        county: normalizeCountyFromLocation(job.locations)
-      };
-    });
+    const normalized = data.jobs.map((job, index) => ({
+      id: `careerjet-${page}-${index}`,
+      title: job.title || "Untitled Role",
+      company: job.company || job.site || "Company",
+      location: job.locations || "Kenya",
+      applyUrl: job.url || "#",
+      deadline: job.date ? new Date(job.date).toISOString() : null,
+      createdAt: job.date ? new Date(job.date).toISOString() : null,
+      source: "Careerjet",
+      category: job.category || "General",
+      type: normalizeType(job.type || job.title),
+      description: job.description
+        ? job.description.replace(/\s+/g, " ").slice(0, 140) + "..."
+        : "",
+      county: normalizeCountyFromLocation(job.locations)
+    }));
 
     jobs.push(...normalized);
   }
@@ -107,6 +105,7 @@ async function fetchCareerjetJobs(pages, perPage, keyword, location, userIp, use
   return dedupeJobs(jobs);
 }
 
+// --- Handler ---
 export default async function handler(req, res) {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -127,7 +126,41 @@ export default async function handler(req, res) {
     const userIp = getUserIp(req);
     const userAgent = req.headers["user-agent"] || "JobSeekAfrica/1.0";
 
-    const jobs = await fetchCareerjetJobs(pages, perPage, keyword, location, userIp, userAgent, apiKey);
+    let jobs = await fetchCareerjetJobs(pages, perPage, keyword, location, userIp, userAgent, apiKey);
+
+    // --- fallback if no jobs ---
+    if (!jobs.length) {
+      jobs = [
+        {
+          id: "fallback-1",
+          title: "Marketing Intern",
+          company: "Example Ltd",
+          location: "Nairobi",
+          applyUrl: "#",
+          deadline: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          source: "Fallback",
+          category: "Marketing",
+          type: "Internship",
+          description: "This is a placeholder job used when no jobs are returned.",
+          county: "Nairobi"
+        },
+        {
+          id: "fallback-2",
+          title: "Software Developer Intern",
+          company: "Tech Solutions",
+          location: "Nairobi",
+          applyUrl: "#",
+          deadline: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          source: "Fallback",
+          category: "IT",
+          type: "Internship",
+          description: "This is a placeholder job used when no jobs are returned.",
+          county: "Nairobi"
+        }
+      ];
+    }
 
     res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
     res.status(200).json({ jobs });
