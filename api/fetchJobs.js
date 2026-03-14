@@ -1,5 +1,5 @@
 // api/fetchJobs.js
-import fetch from "node-fetch";
+import fetch from "node-fetch"; // Node <18 only
 
 const CAREERJET_API_URL = "https://search.api.careerjet.net/v4/query";
 
@@ -12,98 +12,23 @@ const KENYA_COUNTIES = [
   "Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot"
 ];
 
-function normalizeType(rawType) {
-  if (!rawType) return "Full-time";
-  const value = rawType.toString().toLowerCase();
-  if (value.includes("part")) return "Part-time";
-  if (value.includes("intern")) return "Internship";
-  if (value.includes("contract")) return "Contract";
-  if (value.includes("graduate") || value.includes("trainee")) return "Graduate Trainee";
+function normalizeType(type) {
+  if (!type) return "Full-time";
+  type = type.toLowerCase();
+  if (type.includes("intern")) return "Internship";
+  if (type.includes("part")) return "Part-time";
+  if (type.includes("contract")) return "Contract";
+  if (type.includes("graduate") || type.includes("trainee")) return "Graduate Trainee";
   return "Full-time";
 }
 
-function normalizeCountyFromLocation(location) {
+function normalizeCounty(location) {
   if (!location) return "Nationwide";
-  const lower = location.toLowerCase().replace(" county", "");
+  const lower = location.toLowerCase();
   const match = KENYA_COUNTIES.find(c => lower.includes(c.toLowerCase()));
   return match || "Nationwide";
 }
 
-function dedupeJobs(jobs) {
-  const seen = new Set();
-  return jobs.filter(job => {
-    const key = job.applyUrl || `${job.title}-${job.company}-${job.location}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function getUserIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return req.socket?.remoteAddress || "0.0.0.0";
-}
-
-function buildBasicAuthHeader(apiKey) {
-  if (!apiKey) return "";
-  return `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`;
-}
-
-// Fetch all jobs in one go (no frontend page loop needed)
-async function fetchCareerjetJobs(totalPages, perPage, keyword, location, userIp, userAgent, apiKey) {
-  const jobs = [];
-  const authHeader = buildBasicAuthHeader(apiKey);
-
-  for (let page = 1; page <= totalPages; page++) {
-    const params = new URLSearchParams({
-      locale_code: "en_KE",
-      page: page.toString(),
-      page_size: perPage.toString(),
-      sort: "date",
-      user_ip: userIp,
-      user_agent: userAgent || "JobSeekAfrica/1.0",
-      api_key: apiKey
-    });
-
-    if (keyword) params.set("keywords", keyword);
-    if (location && location.toLowerCase() !== "nationwide") params.set("location", location);
-
-    const endpoint = `${CAREERJET_API_URL}?${params.toString()}`;
-
-    try {
-      const res = await fetch(endpoint, { headers: authHeader ? { Authorization: authHeader } : undefined });
-      if (!res.ok) continue;
-
-      const data = await res.json();
-      if (!data.jobs || !Array.isArray(data.jobs)) continue;
-
-      const normalized = data.jobs.map(job => ({
-        id: job.url || `${job.title}-${job.company}-${job.locations}`,
-        title: job.title || "Untitled Role",
-        company: job.company || job.site || "Company",
-        location: job.locations || "Kenya",
-        applyUrl: job.url || "#",
-        createdAt: job.date ? new Date(job.date).toISOString() : null,
-        source: "Careerjet",
-        category: job.category || "General",
-        type: normalizeType(job.type || job.title),
-        description: job.description ? job.description.replace(/\s+/g, " ").slice(0, 140) + "..." : "",
-        county: normalizeCountyFromLocation(job.locations)
-      }));
-
-      jobs.push(...normalized);
-
-    } catch (err) {
-      console.error("Careerjet fetch error:", err);
-      continue;
-    }
-  }
-
-  return dedupeJobs(jobs);
-}
-
-// Main API handler
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
@@ -116,20 +41,40 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: "Missing CAREERJET_API_KEY" });
 
   try {
-    const totalPages = Math.min(50, Math.max(1, Number(req.query.pages || 50)));
-    const perPage = Math.min(50, Math.max(10, Number(req.query.perPage || 50)));
-    const keyword = typeof req.query.q === "string" ? req.query.q.trim() : "";
-    const location = typeof req.query.county === "string" ? req.query.county.trim() : "";
-    const userIp = getUserIp(req);
-    const userAgent = req.headers["user-agent"] || "JobSeekAfrica/1.0";
+    const params = new URLSearchParams({
+      locale_code: "en_KE",
+      page: "1",
+      page_size: "50",
+      sort: "date",
+      user_ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress || "0.0.0.0",
+      user_agent: req.headers["user-agent"] || "JobSeekAfrica/1.0",
+      api_key: apiKey
+    });
 
-    const jobs = await fetchCareerjetJobs(totalPages, perPage, keyword, location, userIp, userAgent, apiKey);
+    const endpoint = `${CAREERJET_API_URL}?${params.toString()}`;
 
-    res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
+    const response = await fetch(endpoint);
+    if (!response.ok) throw new Error("Careerjet API failed");
+
+    const data = await response.json();
+    if (!data.jobs || !Array.isArray(data.jobs)) return res.status(200).json({ jobs: [] });
+
+    const jobs = data.jobs.map(job => ({
+      id: job.url || `${job.title}-${job.company}`,
+      title: job.title || "Untitled Role",
+      company: job.company || job.site || "Company",
+      location: job.locations || "Kenya",
+      county: normalizeCounty(job.locations),
+      applyUrl: job.url || "#",
+      type: normalizeType(job.type || job.title),
+      description: job.description ? job.description.replace(/\s+/g, " ").slice(0, 140) + "..." : "",
+      source: "Careerjet"
+    }));
+
     res.status(200).json({ jobs });
 
-  } catch (error) {
-    console.error("Careerjet fetch error:", error);
-    res.status(500).json({ error: "Unable to fetch jobs right now" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch jobs" });
   }
 }
