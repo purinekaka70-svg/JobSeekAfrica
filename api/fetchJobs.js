@@ -1,9 +1,8 @@
 // api/fetchJobs.js
-import fetch from "node-fetch"; // Only needed in Node <18; Vercel/Next 18+ supports fetch natively
+import fetch from "node-fetch";
 
 const CAREERJET_API_URL = "https://search.api.careerjet.net/v4/query";
 
-// Kenyan counties for normalization
 const KENYA_COUNTIES = [
   "Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa",
   "Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga",
@@ -13,7 +12,6 @@ const KENYA_COUNTIES = [
   "Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot"
 ];
 
-// Normalize job type
 function normalizeType(rawType) {
   if (!rawType) return "Full-time";
   const value = rawType.toString().toLowerCase();
@@ -24,7 +22,6 @@ function normalizeType(rawType) {
   return "Full-time";
 }
 
-// Normalize county from location
 function normalizeCountyFromLocation(location) {
   if (!location) return "Nationwide";
   const lower = location.toLowerCase().replace(" county", "");
@@ -32,7 +29,6 @@ function normalizeCountyFromLocation(location) {
   return match || "Nationwide";
 }
 
-// Deduplicate jobs
 function dedupeJobs(jobs) {
   const seen = new Set();
   return jobs.filter(job => {
@@ -43,83 +39,72 @@ function dedupeJobs(jobs) {
   });
 }
 
-// Get user IP
 function getUserIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
   if (forwarded) return forwarded.split(",")[0].trim();
   return req.socket?.remoteAddress || "0.0.0.0";
 }
 
-// Build Basic Auth header for Careerjet
 function buildBasicAuthHeader(apiKey) {
   if (!apiKey) return "";
   return `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`;
 }
 
-// Fetch jobs from Careerjet with batching to avoid timeout
+// Fetch all jobs in one go (no frontend page loop needed)
 async function fetchCareerjetJobs(totalPages, perPage, keyword, location, userIp, userAgent, apiKey) {
   const jobs = [];
   const authHeader = buildBasicAuthHeader(apiKey);
 
-  // Batch fetch 5 pages at a time to reduce API stress
-  const batchSize = 5;
-  for (let i = 1; i <= totalPages; i += batchSize) {
-    const batchPages = Array.from({ length: Math.min(batchSize, totalPages - i + 1) }, (_, idx) => i + idx);
-
-    const batchFetches = batchPages.map(async (page) => {
-      const params = new URLSearchParams({
-        locale_code: "en_KE",
-        page: String(page),
-        page_size: String(perPage),
-        sort: "date",
-        user_ip: userIp,
-        user_agent: userAgent || "JobSeekAfrica/1.0",
-        api_key: apiKey
-      });
-
-      if (keyword) params.set("keywords", keyword);
-      if (location && location.toLowerCase() !== "nationwide") params.set("location", location);
-
-      const endpoint = `${CAREERJET_API_URL}?${params.toString()}`;
-
-      try {
-        const res = await fetch(endpoint, { headers: authHeader ? { Authorization: authHeader } : undefined });
-        if (!res.ok) return [];
-        const data = await res.json();
-        if (!data.jobs || !Array.isArray(data.jobs)) return [];
-
-        return data.jobs.map((job, index) => ({
-          id: `careerjet-${page}-${index}`,
-          title: job.title || "Untitled Role",
-          company: job.company || job.site || "Company",
-          location: job.locations || "Kenya",
-          applyUrl: job.url || "#", // Official job URL
-          deadline: job.date ? new Date(job.date).toISOString() : null,
-          createdAt: job.date ? new Date(job.date).toISOString() : null,
-          source: "Careerjet",
-          category: job.category || "General",
-          type: normalizeType(job.type || job.title),
-          description: job.description
-            ? job.description.replace(/\s+/g, " ").slice(0, 140) + "..."
-            : "",
-          county: normalizeCountyFromLocation(job.locations)
-        }));
-      } catch (err) {
-        console.error("Careerjet batch fetch error:", err);
-        return [];
-      }
+  for (let page = 1; page <= totalPages; page++) {
+    const params = new URLSearchParams({
+      locale_code: "en_KE",
+      page: page.toString(),
+      page_size: perPage.toString(),
+      sort: "date",
+      user_ip: userIp,
+      user_agent: userAgent || "JobSeekAfrica/1.0",
+      api_key: apiKey
     });
 
-    const results = await Promise.all(batchFetches);
-    results.forEach(arr => jobs.push(...arr));
+    if (keyword) params.set("keywords", keyword);
+    if (location && location.toLowerCase() !== "nationwide") params.set("location", location);
+
+    const endpoint = `${CAREERJET_API_URL}?${params.toString()}`;
+
+    try {
+      const res = await fetch(endpoint, { headers: authHeader ? { Authorization: authHeader } : undefined });
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      if (!data.jobs || !Array.isArray(data.jobs)) continue;
+
+      const normalized = data.jobs.map(job => ({
+        id: job.url || `${job.title}-${job.company}-${job.locations}`,
+        title: job.title || "Untitled Role",
+        company: job.company || job.site || "Company",
+        location: job.locations || "Kenya",
+        applyUrl: job.url || "#",
+        createdAt: job.date ? new Date(job.date).toISOString() : null,
+        source: "Careerjet",
+        category: job.category || "General",
+        type: normalizeType(job.type || job.title),
+        description: job.description ? job.description.replace(/\s+/g, " ").slice(0, 140) + "..." : "",
+        county: normalizeCountyFromLocation(job.locations)
+      }));
+
+      jobs.push(...normalized);
+
+    } catch (err) {
+      console.error("Careerjet fetch error:", err);
+      continue;
+    }
   }
 
   return dedupeJobs(jobs);
 }
 
-// Main handler
+// Main API handler
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -131,8 +116,8 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: "Missing CAREERJET_API_KEY" });
 
   try {
-    const totalPages = Math.min(50, Math.max(1, Number(req.query.pages || 50))); // up to 50 pages
-    const perPage = Math.min(50, Math.max(10, Number(req.query.perPage || 50))); // up to 50 jobs per page
+    const totalPages = Math.min(50, Math.max(1, Number(req.query.pages || 50)));
+    const perPage = Math.min(50, Math.max(10, Number(req.query.perPage || 50)));
     const keyword = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const location = typeof req.query.county === "string" ? req.query.county.trim() : "";
     const userIp = getUserIp(req);
@@ -142,6 +127,7 @@ export default async function handler(req, res) {
 
     res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
     res.status(200).json({ jobs });
+
   } catch (error) {
     console.error("Careerjet fetch error:", error);
     res.status(500).json({ error: "Unable to fetch jobs right now" });
