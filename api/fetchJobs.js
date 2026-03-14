@@ -1,6 +1,9 @@
 // api/fetchJobs.js
+import fetch from "node-fetch"; // Only needed in Node 18 or older; Vercel supports fetch natively in Node 18+
+
 const CAREERJET_API_URL = "https://search.api.careerjet.net/v4/query";
 
+// Kenyan counties for normalization
 const KENYA_COUNTIES = [
   "Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa",
   "Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga",
@@ -21,18 +24,18 @@ function normalizeType(rawType) {
   return "Full-time";
 }
 
-// Normalize county from location string
+// Normalize county from location
 function normalizeCountyFromLocation(location) {
   if (!location) return "Nationwide";
   const lower = location.toLowerCase().replace(" county", "");
-  const match = KENYA_COUNTIES.find((county) => lower.includes(county.toLowerCase()));
+  const match = KENYA_COUNTIES.find(c => lower.includes(c.toLowerCase()));
   return match || "Nationwide";
 }
 
 // Deduplicate jobs
 function dedupeJobs(jobs) {
   const seen = new Set();
-  return jobs.filter((job) => {
+  return jobs.filter(job => {
     const key = job.applyUrl || `${job.title}-${job.company}-${job.location}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -40,14 +43,14 @@ function dedupeJobs(jobs) {
   });
 }
 
-// Get user IP from request headers
+// Get user IP
 function getUserIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
   if (forwarded) return forwarded.split(",")[0].trim();
   return req.socket?.remoteAddress || "0.0.0.0";
 }
 
-// Build Basic Auth header
+// Basic Auth header for Careerjet
 function buildBasicAuthHeader(apiKey) {
   if (!apiKey) return "";
   return `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`;
@@ -65,7 +68,7 @@ async function fetchCareerjetJobs(pages, perPage, keyword, location, userIp, use
       page_size: String(perPage),
       sort: "date",
       user_ip: userIp,
-      user_agent: userAgent || "Mozilla/5.0",
+      user_agent: userAgent || "JobSeekAfrica/1.0",
       api_key: apiKey
     });
 
@@ -87,7 +90,7 @@ async function fetchCareerjetJobs(pages, perPage, keyword, location, userIp, use
       title: job.title || "Untitled Role",
       company: job.company || job.site || "Company",
       location: job.locations || "Kenya",
-      applyUrl: job.url || "#",
+      applyUrl: job.url || "#", // Official job URL
       deadline: job.date ? new Date(job.date).toISOString() : null,
       createdAt: job.date ? new Date(job.date).toISOString() : null,
       source: "Careerjet",
@@ -105,7 +108,7 @@ async function fetchCareerjetJobs(pages, perPage, keyword, location, userIp, use
   return dedupeJobs(jobs);
 }
 
-// --- Handler ---
+// Main handler
 export default async function handler(req, res) {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -119,48 +122,14 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: "Missing CAREERJET_API_KEY" });
 
   try {
-    const pages = Math.min(5, Math.max(1, Number(req.query.pages || 2)));
-    const perPage = Math.min(50, Math.max(10, Number(req.query.perPage || 30)));
+    const pages = Math.min(5, Math.max(1, Number(req.query.pages || 5))); // fetch up to 5 pages
+    const perPage = Math.min(50, Math.max(10, Number(req.query.perPage || 50))); // 50 jobs per page
     const keyword = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const location = typeof req.query.county === "string" ? req.query.county.trim() : "";
     const userIp = getUserIp(req);
     const userAgent = req.headers["user-agent"] || "JobSeekAfrica/1.0";
 
-    let jobs = await fetchCareerjetJobs(pages, perPage, keyword, location, userIp, userAgent, apiKey);
-
-    // --- fallback if no jobs ---
-    if (!jobs.length) {
-      jobs = [
-        {
-          id: "fallback-1",
-          title: "Marketing Intern",
-          company: "Example Ltd",
-          location: "Nairobi",
-          applyUrl: "#",
-          deadline: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          source: "Fallback",
-          category: "Marketing",
-          type: "Internship",
-          description: "This is a placeholder job used when no jobs are returned.",
-          county: "Nairobi"
-        },
-        {
-          id: "fallback-2",
-          title: "Software Developer Intern",
-          company: "Tech Solutions",
-          location: "Nairobi",
-          applyUrl: "#",
-          deadline: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          source: "Fallback",
-          category: "IT",
-          type: "Internship",
-          description: "This is a placeholder job used when no jobs are returned.",
-          county: "Nairobi"
-        }
-      ];
-    }
+    const jobs = await fetchCareerjetJobs(pages, perPage, keyword, location, userIp, userAgent, apiKey);
 
     res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
     res.status(200).json({ jobs });
