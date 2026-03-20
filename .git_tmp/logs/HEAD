@@ -1,0 +1,47 @@
+0000000000000000000000000000000000000000 150c895e83c44d4a98b352df7bb37cff18701165 puricekaka <puricekaka@gmail.com> 1773580968 +0300	commit (initial): Refactor: Remove localStorage and centralize payments in Firestore
+150c895e83c44d4a98b352df7bb37cff18701165 0000000000000000000000000000000000000000 puricekaka <puricekaka@gmail.com> 1773581277 +0300	Branch: renamed refs/heads/master to refs/heads/main
+0000000000000000000000000000000000000000 150c895e83c44d4a98b352df7bb37cff18701165 puricekaka <puricekaka@gmail.com> 1773581277 +0300	Branch: renamed refs/heads/master to refs/heads/main
+150c895e83c44d4a98b352df7bb37cff18701165 0cc2dffbc67b074d8d4fccaea0e96992a0fac267 puricekaka <puricekaka@gmail.com> 1773649827 +0300	commit (merge): Fix payments, QR flow, and rules
+0cc2dffbc67b074d8d4fccaea0e96992a0fac267 6c1789e04cf7cf8ada6a6173a8fbf2a21209ce95 puricekaka <puricekaka@gmail.com> 1773650131 +0300	commit: Improve auth error messaging
+6c1789e04cf7cf8ada6a6173a8fbf2a21209ce95 94035f915a1c741f37c64d9d60138647803e8533 puricekaka <puricekaka@gmail.com> 1773651046 +0300	commit: Load real Careerjet jobs only
+94035f915a1c741f37c64d9d60138647803e8533 39d1227f111e88b8b1f0c837bd0ba2f8454164bb puricekaka <puricekaka@gmail.com> 1773651816 +0300	commit: Polish UI styling
+39d1227f111e88b8b1f0c837bd0ba2f8454164bb cb68710db9c76ce31c28221cd882b94992d8962f puricekaka <puricekaka@gmail.com> 1773651970 +0300	commit: Fix Careerjet endpoint and enable infinite scroll
+cb68710db9c76ce31c28221cd882b94992d8962f 01eb5447824d17b92e695979ec98d41b003ed95a puricekaka <puricekaka@gmail.com> 1773652089 +0300	commit: Update payment notice copy
+01eb5447824d17b92e695979ec98d41b003ed95a ae625c6a06a89fd197e36f36a8cef1e90c38b9df puricekaka <puricekaka@gmail.com> 1773666418 +0300	reset: moving to origin/main
+ae625c6a06a89fd197e36f36a8cef1e90c38b9df 0d04ab1186f5f3a612630dd43dd11fc372640ca6 puricekaka <puricekaka@gmail.com> 1773666433 +0300	commit: Add admin cleanup and anon metadata
+0d04ab1186f5f3a612630dd43dd11fc372640ca6 0d04ab1186f5f3a612630dd43dd11fc372640ca6 puricekaka <puricekaka@gmail.com> 1773667203 +0300	reset: moving to origin/main
+0d04ab1186f5f3a612630dd43dd11fc372640ca6 f6034f7e40b64d6e4cfb06b76b31ac29007bfa4b puricekaka <puricekaka@gmail.com> 1773667217 +0300	commit: Expand admin dashboard and user job submissions
+f6034f7e40b64d6e4cfb06b76b31ac29007bfa4b f6034f7e40b64d6e4cfb06b76b31ac29007bfa4b puricekaka <puricekaka@gmail.com> 1773667794 +0300	reset: moving to origin/main
+f6034f7e40b64d6e4cfb06b76b31ac29007bfa4b 5332d01b45fe6f7591e0e0a0692547a40c98b34c puricekaka <puricekaka@gmail.com> 1773667802 +0300	commit: Add admin sidebar and enforce job login
+5332d01b45fe6f7591e0e0a0692547a40c98b34c 5332d01b45fe6f7591e0e0a0692547a40c98b34c puricekaka <puricekaka@gmail.com> 1773668149 +0300	reset: moving to origin/main
+5332d01b45fe6f7591e0e0a0692547a40c98b34c 0b17aeb3093d773de5dc76c2e2b75b7f976924a9 puricekaka <puricekaka@gmail.com> 1773668156 +0300	commit: Strengthen admin authentication
+0b17aeb3093d773de5dc76c2e2b75b7f976924a9 e09f018f90dc416653bb1ef2c7d6f70ef2123ef5 puricekaka <puricekaka@gmail.com> 1773668241 +0300	commit: Add post job link to nav
+e09f018f90dc416653bb1ef2c7d6f70ef2123ef5 76f48990e335e940c35b3f5744235ac4da382025 puricekaka <puricekaka@gmail.com> 1773668303 +0300	commit: Make job posting free
+76f48990e335e940c35b3f5744235ac4da382025 76f48990e335e940c35b3f5744235ac4da382025 puricekaka <puricekaka@gmail.com> 1773669091 +0300	reset: moving to origin/main
+76f48990e335e940c35b3f5744235ac4da382025 065c5a47f8b72de61c5ebe3b3198de0096754043 puricekaka <puricekaka@gmail.com> 1773669098 +0300	commit: Add job posting signup and user profiles
+065c5a47f8b72de61c5ebe3b3198de0096754043 ac232d8b9d083ec5fbf7112675bbb7d749824418 puricekaka <puricekaka@gmail.com> 1773669332 +0300	commit: Remove post job section from jobs page
+ac232d8b9d083ec5fbf7112675bbb7d749824418 6cdc026e352e4ee578194f7a12acf36c2287fbb6 puricekaka <puricekaka@gmail.com> 1773669883 +0300	commit: Add post job page and collapse nav
+6cdc026e352e4ee578194f7a12acf36c2287fbb6 dc657f20cebcd15cdfd83e2287201830b49f74ff puricekaka <puricekaka@gmail.com> 1773740607 +0300	commit: Add Adzuna job fetch support
+dc657f20cebcd15cdfd83e2287201830b49f74ff f89e2be52dec9cfb2ecc30d7c2234f871edf2c36 puricekaka <puricekaka@gmail.com> 1773740704 +0300	pull --rebase origin main (start): checkout f89e2be52dec9cfb2ecc30d7c2234f871edf2c36
+f89e2be52dec9cfb2ecc30d7c2234f871edf2c36 361cfd9f471c339e2634821fa57666c56c3d50d9 puricekaka <puricekaka@gmail.com> 1773740704 +0300	pull --rebase origin main (pick): Add Adzuna job fetch support
+361cfd9f471c339e2634821fa57666c56c3d50d9 361cfd9f471c339e2634821fa57666c56c3d50d9 puricekaka <puricekaka@gmail.com> 1773740704 +0300	pull --rebase origin main (finish): returning to refs/heads/main
+361cfd9f471c339e2634821fa57666c56c3d50d9 ebde483d647fe708ffa23a5dfd4de41310e70556 puricekaka <puricekaka@gmail.com> 1773743627 +0300	commit: Add Jooble job fetch support
+ebde483d647fe708ffa23a5dfd4de41310e70556 ca8e722eba48214f8c5caaac1eb0cf8ab1ba60cc puricekaka <puricekaka@gmail.com> 1773744673 +0300	commit: Use Careerjet with Firestore caching
+ca8e722eba48214f8c5caaac1eb0cf8ab1ba60cc 005793414f8ef51319adb4d77b0ce0597bf33f54 puricekaka <puricekaka@gmail.com> 1773745833 +0300	commit: Add Careerjet stale cache fallback
+005793414f8ef51319adb4d77b0ce0597bf33f54 2f4ea5f118bdcbab91a7dad97c09fb4e4e843646 puricekaka <puricekaka@gmail.com> 1773747273 +0300	commit: Store Careerjet jobs in Firestore
+2f4ea5f118bdcbab91a7dad97c09fb4e4e843646 a938d2a8f5fd243500655b765de1d4d98b1ed74c puricekaka <puricekaka@gmail.com> 1773749892 +0300	commit: Add default Careerjet keywords
+a938d2a8f5fd243500655b765de1d4d98b1ed74c ab5f0e04ff4fe1f6ab0a245fe4dfe82bbda3a404 puricekaka <puricekaka@gmail.com> 1773750977 +0300	commit: Improve empty state and reduce job fetch load
+ab5f0e04ff4fe1f6ab0a245fe4dfe82bbda3a404 7a813a8564d27d1732022c6693cc83a8006bb6f2 puricekaka <puricekaka@gmail.com> 1773751125 +0300	commit: Add cache disable flag and clear cache script
+7a813a8564d27d1732022c6693cc83a8006bb6f2 c51bf01d226d6d9c06a3edbb3f2d90926eeac92c puricekaka <puricekaka@gmail.com> 1773751519 +0300	commit: Guard against self-referential proxy endpoint
+c51bf01d226d6d9c06a3edbb3f2d90926eeac92c e3e9f4769b7facf5e3109ef3ec18488439f28e80 puricekaka <puricekaka@gmail.com> 1773751950 +0300	commit: Surface Careerjet API error payloads
+e3e9f4769b7facf5e3109ef3ec18488439f28e80 8dddad6c9ba86fe3004a48483c70003d80ab0977 puricekaka <puricekaka@gmail.com> 1773753337 +0300	commit: Add debug payload for Careerjet errors
+8dddad6c9ba86fe3004a48483c70003d80ab0977 30d5919fd25e4e01baa9ea759611203c2011640a puricekaka <puricekaka@gmail.com> 1773754564 +0300	commit: Fallback to default keyword when job feed is empty
+30d5919fd25e4e01baa9ea759611203c2011640a 77da3bcd9ec64a865e791b31b3ffe4985768552c puricekaka <puricekaka@gmail.com> 1773755380 +0300	commit: Use fallback keyword by default on jobs page
+77da3bcd9ec64a865e791b31b3ffe4985768552c ee1807a1b302a850d87e7f4366a177efe075f37a puricekaka <puricekaka@gmail.com> 1773756387 +0300	commit: Add fallback jobs loader and cache-bust scripts
+ee1807a1b302a850d87e7f4366a177efe075f37a ca4b2ebdbf76cb126f496d36ab03e548b7218c44 puricekaka <puricekaka@gmail.com> 1773757020 +0300	rebase (start): checkout origin/main
+ca4b2ebdbf76cb126f496d36ab03e548b7218c44 5ffcedc883bb0972bf959ef740aef3fdc74d0483 puricekaka <puricekaka@gmail.com> 1773757020 +0300	rebase (pick): Add fallback jobs loader and cache-bust scripts
+5ffcedc883bb0972bf959ef740aef3fdc74d0483 5ffcedc883bb0972bf959ef740aef3fdc74d0483 puricekaka <puricekaka@gmail.com> 1773757020 +0300	rebase (finish): returning to refs/heads/main
+5ffcedc883bb0972bf959ef740aef3fdc74d0483 a7278cc456906d0df021e45979566867e3d95569 puricekaka <puricekaka@gmail.com> 1773757432 +0300	commit: Force fallback job render when UI is empty
+a7278cc456906d0df021e45979566867e3d95569 4ece94a9ef84e432d06089a494ace42ce4481ac3 puricekaka <puricekaka@gmail.com> 1773758028 +0300	rebase (start): checkout origin/main
+4ece94a9ef84e432d06089a494ace42ce4481ac3 a7ba16c6bf2be6ece8f40c3348e200560254f59e puricekaka <puricekaka@gmail.com> 1773758028 +0300	rebase (pick): Force fallback job render when UI is empty
+a7ba16c6bf2be6ece8f40c3348e200560254f59e a7ba16c6bf2be6ece8f40c3348e200560254f59e puricekaka <puricekaka@gmail.com> 1773758028 +0300	rebase (finish): returning to refs/heads/main

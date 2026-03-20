@@ -1,0 +1,99 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+        (
+          (
+            exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled != false
+          ) ||
+          isAdminEmail()
+        );
+    }
+
+    function isEmailUser() {
+      return request.auth != null &&
+        request.auth.token.email != null;
+    }
+
+    function isAdminEmail() {
+      return request.auth.token.email in [
+        "admin@gmail.com",
+        "admin@jobseekafrica.com",
+        "purine@gmail.com",
+        "purinekaka70@gmail.com"
+      ];
+    }
+
+    // Jobs are public read-only (written by Cloud Functions).
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow create: if isAdmin() || (isEmailUser() && request.resource.data.approved == false);
+      allow update, delete: if isAdmin();
+    }
+
+    // CVs: allow creation and read. Admins can update/delete.
+    match /cvs/{cvId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // QR codes: public create/read.
+    match /qrcodes/{qrId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Cover letters: public create/read.
+    match /letters/{letterId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Portfolios: public create/read.
+    match /portfolios/{portfolioId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Payments: allow create only (no public reads for privacy).
+    match /payments/{paymentId} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Admin allowlist (managed in Firebase Console).
+    match /admins/{adminId} {
+      allow read: if request.auth != null && request.auth.uid == adminId;
+      allow create, update, delete: if false;
+    }
+
+    // User profiles.
+    match /users/{userId} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == userId);
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // Default deny.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

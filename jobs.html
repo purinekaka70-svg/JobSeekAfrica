@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Browse real jobs and internships for jobseekers across Kenya. Filter by category, location, and type to find roles that match your goals."
+    />
+    <meta
+      name="keywords"
+      content="Kenya jobs, jobseekers, internships for students, career opportunities, JobSeekAfrica"
+    />
+    <meta name="author" content="JobSeekAfrica" />
+    <title>Job Listings | JobSeekAfrica</title>
+    <link rel="icon" type="image/png" href="assets/logo.png" />
+    <link rel="apple-touch-icon" href="assets/logo.png" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="jobs-page">
+    <header class="site-header">
+      <div class="container nav-bar">
+        <a class="logo" href="index.html">
+          <img src="assets/logo.png" alt="JobSeekAfrica logo" class="logo-mark" />
+          <span>JobSeekAfrica</span>
+        </a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav id="primaryNav" class="nav nav--collapsible" aria-label="Primary">
+          <a href="cvbuilder.html">CV Builder</a>
+          <a href="coverletter.html">Cover Letter</a>
+          <a href="portfolio.html">Portfolio</a>
+          <a href="jobs.html">Job Listings</a>
+          <a href="postjob.html">Post a Job</a>
+          <a href="qr.html">QR Generator</a>
+        </nav>
+      </div>
+    </header>
+
+<section class="section till-notice">
+  <div class="container">
+    <div class="card till-card">
+      <p><strong>Pay once: 100 KSH gives access to all services.</strong></p>
+      <p><strong>M-Pesa Till Number: 7312380</strong></p>
+      <p>After payment, enter your M-Pesa reference to continue.</p>
+    </div>
+  </div>
+</section>
+
+    <main class="container page">
+      <section class="page-header fade-up" style="--delay: 0.1s">
+        <h1>Job and Internship Listings in Kenya</h1>
+        <p>
+          Real jobs and internships countrywide with regularly updated listings.
+          Search by category or county.
+        </p>
+        <p class="helper">
+          Use the county dropdown to browse opportunities across Kenya.
+        </p>
+        <div class="button-row">
+          <button id="refreshJobs" class="btn">Refresh Listings</button>
+        </div>
+        <p id="jobsStatus" class="helper"></p>
+        <p class="helper">Internship roles are highlighted. Click Apply or the job card to open the full listing.</p>
+      </section>
+
+      <section class="section fade-up" style="--delay: 0.15s">
+        <div class="card filter-card">
+          <h3>Search and Filter</h3>
+          <div class="filter-grid">
+            <div>
+              <label for="searchInput">Search</label>
+              <input id="searchInput" type="text" placeholder="e.g., marketing intern" />
+              <p class="helper">Search by title, company, category, or county.</p>
+            </div>
+            <div>
+              <label for="categoryFilter">Category / Type</label>
+              <select id="categoryFilter">
+                <option value="">All categories</option>
+                <option value="Internship">Internship</option>
+                <option value="Graduate Trainee">Graduate Trainee</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Part-time">Part-time</option>
+                <option value="Contract">Contract</option>
+              </select>
+              <p class="helper">Pick a category or a type like Internship, Full-time, or Part-time.</p>
+            </div>
+            <div>
+              <label for="countyFilter">County</label>
+              <select id="countyFilter">
+                <option value="">All counties</option>
+              </select>
+              <p class="helper">Select a county or Nationwide to see local listings.</p>
+            </div>
+            <div class="notice">
+              All jobs appear by default. Internships are highlighted for jobseekers and students.
+            </div>
+          </div>
+          <div class="button-row">
+            <button id="applyFilters" class="btn">Apply Filters</button>
+            <button id="clearFilters" class="btn btn-ghost" type="button">All Jobs</button>
+          </div>
+          <p id="filterStatus" class="helper"></p>
+        </div>
+      </section>
+
+      <section class="section fade-up" style="--delay: 0.2s">
+        <div id="jobsList" class="jobs-grid"></div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Copyright (c) 2026 JobSeekAfrica. All rights reserved.</p>
+        <p>Contact: 0115613332/0788160688</p>
+      </div>
+    </footer>
+
+    <script>
+      // window.__ENV__ can be injected via env.js or hosting environment.
+      window.__ENV__ = window.__ENV__ || {};
+    </script>
+    <!-- Optional: create env.js from .env and include it before the app scripts -->
+    <script src="env.js?v=1" defer></script>
+    <script src="js/nav.js" defer></script>
+    <script type="module" src="js/jobs.js?v=1"></script>
+    <script>
+      setTimeout(async () => {
+        if (window.__JOBS_BOOTSTRAPPED__) {
+          return;
+        }
+        const jobsList = document.getElementById("jobsList");
+        const jobsStatus = document.getElementById("jobsStatus");
+        if (!jobsList || !jobsStatus) {
+          return;
+        }
+        const hasJobs = jobsList.children.length > 0;
+        if (window.__JOBS_RENDERED__ || hasJobs) {
+          return;
+        }
+        jobsStatus.textContent = "Loading jobs...";
+        const normalizeUrl = (url) => {
+          if (!url) return "";
+          const trimmed = String(url).trim();
+          if (!trimmed || trimmed === "#") return "";
+          const lower = trimmed.toLowerCase();
+          if (lower.startsWith("mailto:") || lower.startsWith("tel:")) return trimmed;
+          if (/^https?:\/\//i.test(trimmed)) return trimmed;
+          if (trimmed.startsWith("//")) return `https:${trimmed}`;
+          if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return "";
+          if (trimmed.startsWith("/")) return "";
+          return `https://${trimmed}`;
+        };
+        const displayLocation = (job) => {
+          const countyRaw = String(job.county || "").trim();
+          if (countyRaw && countyRaw.toLowerCase() !== "nationwide") return countyRaw;
+          const location = String(job.location || "").trim();
+          const lower = location.toLowerCase();
+          const detectCounty = (text) => {
+            if (!text) return "";
+            const lowerText = text.toLowerCase().replace(" county", "");
+            const counties = [
+              "Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu",
+              "Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho",
+              "Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale",
+              "Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit",
+              "Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru",
+              "Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu",
+              "Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia",
+              "Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot"
+            ];
+            const aliases = {
+              "nairobi": "Nairobi",
+              "mombasa": "Mombasa",
+              "kisumu": "Kisumu",
+              "nakuru": "Nakuru",
+              "eldoret": "Uasin Gishu",
+              "thika": "Kiambu",
+              "ruiru": "Kiambu",
+              "juja": "Kiambu",
+              "kitale": "Trans Nzoia",
+              "malindi": "Kilifi",
+              "diani": "Kwale",
+              "voi": "Taita-Taveta",
+              "taveta": "Taita-Taveta",
+              "nyahururu": "Laikipia",
+              "nanyuki": "Laikipia"
+            };
+            for (const county of counties) {
+              if (lowerText.includes(county.toLowerCase())) return county;
+            }
+            for (const [alias, county] of Object.entries(aliases)) {
+              if (lowerText.includes(alias)) return county;
+            }
+            return "";
+          };
+          const derived = detectCounty(location);
+          if (derived) return derived;
+          if (location && !["kenya", "nationwide"].includes(lower)) return location;
+          return "Unknown County";
+        };
+        try {
+          const response = await fetch("/api/fetchJobs?q=driver");
+          const data = await response.json();
+          if (!data.jobs || !data.jobs.length) {
+            jobsStatus.textContent = "No jobs found.";
+            return;
+          }
+          jobsStatus.textContent = `Total ${data.jobs.length} jobs loaded.`;
+          jobsList.innerHTML = "";
+          data.jobs.forEach((job) => {
+            const div = document.createElement("div");
+            div.className = "job-card";
+            const applyUrl = normalizeUrl(job.applyUrl || job.redirect_url || job.url || "");
+            const location = displayLocation(job);
+            div.innerHTML = `
+              <h3>${job.title || "Untitled Role"}</h3>
+              <p><strong>Company:</strong> ${job.company || "Company"}</p>
+              <p><strong>Location:</strong> ${location}</p>
+              <p>${job.description || ""}</p>
+              ${applyUrl ? `<a href="${applyUrl}" target="_blank" rel="noopener noreferrer" class="btn">Apply</a>` : ""}
+            `;
+            jobsList.appendChild(div);
+          });
+          window.__JOBS_RENDERED__ = true;
+        } catch (err) {
+          jobsStatus.textContent = "Error loading jobs.";
+        }
+      }, 2000);
+    </script>
+  </body>
+</html>
+

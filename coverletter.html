@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Create a professional cover letter for internships, graduate trainee roles, and entry-level jobs."
+    />
+    <meta
+      name="keywords"
+      content="Cover letter generator, internship letter, JobSeekAfrica"
+    />
+    <meta name="author" content="JobSeekAfrica" />
+    <title>Cover Letter Generator | JobSeekAfrica</title>
+    <link rel="icon" type="image/png" href="assets/logo.png" />
+    <link rel="apple-touch-icon" href="assets/logo.png" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav-bar">
+        <a class="logo" href="index.html">
+          <img src="assets/logo.png" alt="JobSeekAfrica logo" class="logo-mark" />
+          <span>JobSeekAfrica</span>
+        </a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav id="primaryNav" class="nav" aria-label="Primary">
+          <a href="cvbuilder.html">CV Builder</a>
+          <a href="coverletter.html">Cover Letter</a>
+          <a href="portfolio.html">Portfolio</a>
+          <a href="jobs.html">Job Listings</a>
+          <a href="qr.html">QR Generator</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- M-Pesa Payment Info -->
+    <section class="section till-notice">
+      <div class="container">
+        <div class="card till-card">
+          <p><strong>Pay once: 100 KSH gives access to all services.</strong></p>
+          <p><strong>M-Pesa Till Number: 7312380</strong></p>
+        </div>
+      </div>
+    </section>
+
+    <main class="container page">
+      <section class="page-header fade-up" style="--delay: 0.1s">
+        <h1>Cover Letter Generator</h1>
+        <p>
+          Generate a professional letter for internships, graduate trainee, entry-level,
+          and first-time job applicants.
+        </p>
+        <div class="notice">
+          <strong>Tip:</strong> Keep it one page. Show impact and match your skills to the role.
+        </div>
+      </section>
+
+      <div class="grid-2 fade-up" style="--delay: 0.2s">
+        <form id="letterForm" class="card form-card">
+          <label for="fullName">Full Name</label>
+          <input id="fullName" name="fullName" type="text" placeholder="Purine Mwero" required />
+
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="purine@gmail.com" required />
+
+          <label for="phone">Phone</label>
+          <input id="phone" name="phone" type="tel" placeholder="+254 700 000 000" required />
+
+          <label for="location">Location</label>
+          <input id="location" name="location" type="text" placeholder="Nairobi, Kenya" />
+
+          <label for="jobTitle">Job Title</label>
+          <input id="jobTitle" name="jobTitle" type="text" placeholder="Marketing Intern" required />
+
+          <label for="company">Company Name</label>
+          <input id="company" name="company" type="text" placeholder="Company Ltd" required />
+
+          <label for="templateType">Letter Type</label>
+          <select id="templateType" name="templateType">
+            <option value="cover">Cover Letter</option>
+            <option value="application">Job Application Letter</option>
+            <option value="internship">Internship Application Letter</option>
+            <option value="graduate">Graduate Trainee Application Letter</option>
+            <option value="entry">Entry-level Application Letter</option>
+            <option value="first-time">First-time Job Applicant Letter</option>
+          </select>
+
+          <label for="letterTemplate">Letter Template</label>
+          <select id="letterTemplate" name="letterTemplate">
+            <option value="modern">Modern Professional</option>
+            <option value="classic">Classic Traditional</option>
+            <option value="creative">Creative Standout</option>
+            <option value="minimal">Minimal Clean</option>
+            <option value="student">Student Focused</option>
+          </select>
+
+          <label for="letterLength">Letter Length</label>
+          <select id="letterLength" name="letterLength">
+            <option value="short">Short (3-4 paragraphs)</option>
+            <option value="medium">Medium (4-5 paragraphs)</option>
+            <option value="long">Long (5-6 paragraphs)</option>
+            <option value="reliable">Reliable (Balanced professional)</option>
+          </select>
+
+          <label for="letterPages">Letter Pages</label>
+          <select id="letterPages" name="letterPages">
+            <option value="1">1 Page</option>
+            <option value="2">2 Pages</option>
+          </select>
+
+          <label for="skills">Key Skills</label>
+          <textarea
+            id="skills"
+            name="skills"
+            placeholder="Communication, Excel, Public speaking"
+          ></textarea>
+
+          <label for="experience">Experience / Projects</label>
+          <textarea
+            id="experience"
+            name="experience"
+            placeholder="Intern, ABC Company - Managed social media campaigns"
+          ></textarea>
+
+          <label for="motivation">Why this company?</label>
+          <textarea
+            id="motivation"
+            name="motivation"
+            placeholder="I admire your mission of supporting youth employment..."
+          ></textarea>
+
+          <div class="reference-input">
+            <label for="mpesaRefLetter">Enter M-Pesa Reference Code</label>
+            <input type="text" id="mpesaRefLetter" name="mpesaRef" placeholder="e.g., ABC123XYZ" maxlength="20" />
+          </div>
+
+          <div class="button-row">
+            <button type="button" id="saveLetterBtn" class="btn">Save Letter</button>
+            <button type="button" id="downloadLetterBtn" class="btn btn-secondary">
+              Download PDF
+            </button>
+            <button type="button" id="copyLetterBtn" class="btn btn-ghost">Copy Text</button>
+            <button type="button" id="regenerateLetterBtn" class="btn btn-ghost">Regenerate</button>
+          </div>
+          <p id="letterStatus" class="helper"></p>
+        </form>
+
+        <div class="card preview-card">
+          <h3>Preview</h3>
+          <div id="letterPreview" class="letter-preview"></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Copyright (c) 2026 JobSeekAfrica. All rights reserved.</p>
+        <p>Contact: 0115613332/0788160688</p>
+      </div>
+    </footer>
+
+    <script>
+      // window.__ENV__ can be injected via env.js or hosting environment.
+      window.__ENV__ = window.__ENV__ || {};
+    </script>
+    <!-- Optional: create env.js from .env and include it before the app scripts -->
+    <script src="env.js" defer></script>
+    <script src="js/nav.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="module" src="js/coverletter.js"></script>
+  </body>
+</html>
+

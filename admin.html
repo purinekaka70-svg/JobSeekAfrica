@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Admin dashboard for JobSeekAfrica. Manage CVs, jobs, and QR codes."
+    />
+    <meta name="keywords" content="JobSeekAfrica admin, manage jobs, manage CVs" />
+    <meta name="author" content="JobSeekAfrica" />
+    <title>Admin Panel | JobSeekAfrica</title>
+    <link rel="icon" type="image/png" href="assets/logo.png" />
+    <link rel="apple-touch-icon" href="assets/logo.png" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="admin-shell">
+    <header class="site-header">
+      <div class="container nav-bar">
+        <a class="logo" href="index.html">
+          <img src="assets/logo.png" alt="JobSeekAfrica logo" class="logo-mark" />
+          <span>JobSeekAfrica</span>
+        </a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav id="primaryNav" class="nav" aria-label="Primary">
+          <a href="cvbuilder.html">CV Builder</a>
+          <a href="coverletter.html">Cover Letter</a>
+          <a href="portfolio.html">Portfolio</a>
+          <a href="jobs.html">Job Listings</a>
+          <a href="qr.html">QR Generator</a>
+          <a href="admin.html">Admin</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- M-Pesa Payment Info -->
+    <section class="section till-notice">
+      <div class="container">
+        <div class="card till-card">
+          <p><strong>Pay once: 100 KSH gives access to all services.</strong></p>
+          <p><strong>M-Pesa Till Number: 7312380</strong></p>
+        </div>
+      </div>
+    </section>
+
+    <main class="container page admin-page">
+      <div class="admin-toolbar">
+        <button
+          id="adminMenuToggle"
+          class="admin-menu-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="adminSidebar"
+          aria-label="Toggle admin menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <p class="helper">Admin menu</p>
+      </div>
+
+      <div id="adminOverlay" class="admin-overlay" hidden></div>
+      <div class="admin-layout">
+        <aside id="adminSidebar" class="admin-sidebar" aria-label="Admin menu">
+          <h3>Admin Menu</h3>
+          <nav class="admin-side-nav">
+            <a href="#adminOverview">Overview</a>
+            <a href="#adminMaintenance">Maintenance</a>
+            <a href="#adminJobs">Jobs</a>
+            <a href="#adminCvs">CVs</a>
+            <a href="#adminLetters">Cover Letters</a>
+            <a href="#adminPortfolios">Portfolios</a>
+            <a href="#adminQr">QR Codes</a>
+            <a href="#adminPayments">Payments</a>
+          </nav>
+        </aside>
+
+        <div class="admin-content">
+      <section class="page-header fade-up" style="--delay: 0.1s">
+        <h1>Admin Panel</h1>
+        <p>Manage CVs, job listings, and QR codes created by users.</p>
+      </section>
+
+      <!-- Admin login -->
+      <section id="adminLogin" class="card form-card fade-up" style="--delay: 0.2s">
+        <h3>Admin Login</h3>
+        <p class="helper">
+          Sign in with your Firebase Auth admin account to access the dashboard.
+        </p>
+        <form id="loginForm">
+          <label for="adminEmail">Email</label>
+          <input
+            id="adminEmail"
+            name="adminEmail"
+            type="email"
+            placeholder="purine@gmail.com"
+            required
+          />
+
+          <label for="adminPassword">Password</label>
+          <input
+            id="adminPassword"
+            name="adminPassword"
+            type="password"
+            placeholder="Enter password"
+            required
+          />
+
+          <div class="button-row">
+            <button type="submit" class="btn">Login</button>
+          </div>
+          <p id="loginStatus" class="helper"></p>
+        </form>
+      </section>
+
+      <!-- Admin dashboard -->
+      <section id="adminDashboard" class="fade-up" style="--delay: 0.3s" hidden>
+        <section id="adminOverview" class="admin-section">
+          <div class="stat-row" id="adminStats">
+            <div class="stat-card">
+              <p class="helper">CVs Generated</p>
+              <span id="cvCount">0</span>
+            </div>
+            <div class="stat-card">
+              <p class="helper">Jobs Listed</p>
+              <span id="jobCount">0</span>
+            </div>
+            <div class="stat-card">
+              <p class="helper">QR Codes</p>
+              <span id="qrCount">0</span>
+            </div>
+            <div class="stat-card">
+              <p class="helper">Cover Letters</p>
+              <span id="letterCount">0</span>
+            </div>
+            <div class="stat-card">
+              <p class="helper">Portfolios</p>
+              <span id="portfolioCount">0</span>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="refreshData" class="btn btn-ghost" type="button">Refresh Data</button>
+            <button id="logoutBtn" class="btn btn-ghost" type="button">Logout</button>
+          </div>
+        </section>
+
+        <section id="adminMaintenance" class="admin-section">
+          <div class="admin-grid section">
+            <div class="card">
+              <h3>Maintenance</h3>
+              <p class="helper">
+                Use these tools to clear anonymous data or reset user records weekly.
+              </p>
+              <div class="button-row">
+                <button id="purgeAnon" class="btn btn-ghost" type="button">
+                  Delete Anonymous Data
+                </button>
+                <button id="clearUserData" class="btn btn-ghost" type="button">
+                  Clear All User Data
+                </button>
+                <button id="clearJobsAnon" class="btn btn-ghost" type="button">
+                  Delete Jobs + Anonymous
+                </button>
+              </div>
+              <p id="maintenanceStatus" class="helper"></p>
+            </div>
+            <div class="card">
+              <h3>Careerjet Sync</h3>
+              <p class="helper">
+                Pull the latest 300 Careerjet jobs, save them to Firestore, and delete older
+                Careerjet jobs automatically.
+              </p>
+              <div class="button-row">
+                <button id="clearJobs" class="btn btn-ghost" type="button">
+                  Delete All Jobs
+                </button>
+                <button id="syncJobs" class="btn btn-secondary" type="button">
+                  Sync 300 Jobs
+                </button>
+              </div>
+              <p class="helper">
+                After sync, the Jobs page opens and the server IP opens in a new tab.
+              </p>
+              <p class="helper"><strong>Schedule:</strong> Weekly (Monday 00:00 EAT).</p>
+              <p class="helper">
+                <strong>Server IP:</strong>
+                <span id="adminServerIp" class="mono">Loading...</span>
+              </p>
+              <p class="helper">
+                Note: Vercel server IPs can change. If Careerjet needs an allowlist,
+                use a fixed-IP proxy and set <code>CAREERJET_PROXY_ENDPOINT</code>.
+              </p>
+              <p id="syncStatus" class="helper"></p>
+            </div>
+          </div>
+        </section>
+
+        <div id="editPanel" class="card edit-panel" hidden>
+          <h3>Edit Record</h3>
+          <p id="editPanelMeta" class="helper"></p>
+          <textarea id="editPanelTextarea" class="edit-textarea" spellcheck="false"></textarea>
+          <div class="button-row">
+            <button id="editPanelSave" class="btn" type="button">Save Changes</button>
+            <button id="editPanelCancel" class="btn btn-ghost" type="button">Cancel</button>
+          </div>
+          <p id="editPanelStatus" class="helper"></p>
+        </div>
+
+        <section id="adminJobs" class="admin-section">
+          <div class="admin-grid section">
+            <div class="card">
+              <h3>Add or Edit Job Listing</h3>
+              <form id="jobForm" class="form-card">
+                <label for="jobTitle">Job Title</label>
+                <input id="jobTitle" type="text" required />
+
+                <label for="jobCompany">Company</label>
+                <input id="jobCompany" type="text" required />
+
+                <label for="jobLocation">Location</label>
+                <input id="jobLocation" type="text" required />
+
+                <label for="jobCounty">County</label>
+                <select id="jobCounty" required>
+                  <option value="">Select county</option>
+                </select>
+                <p class="helper">Choose a county (or Nationwide) to power filters.</p>
+
+                <label for="jobCategory">Category</label>
+                <input id="jobCategory" type="text" placeholder="Marketing, Tech" />
+
+                <label for="jobType">Type</label>
+                <select id="jobType">
+                  <option value="Internship">Internship</option>
+                  <option value="Graduate Trainee">Graduate Trainee</option>
+                  <option value="Part-time">Part-time</option>
+                  <option value="Full-time">Full-time</option>
+                  <option value="Contract">Contract</option>
+                </select>
+
+                <label for="jobLink">Apply Link</label>
+                <input id="jobLink" type="url" required />
+
+                <label for="jobDeadline">Deadline</label>
+                <input id="jobDeadline" type="date" />
+
+                <label for="jobDescription">Short Description</label>
+                <textarea
+                  id="jobDescription"
+                  placeholder="One or two sentences about the role"
+                ></textarea>
+
+                <div class="reference-input">
+                  <label for="mpesaRefJob">Enter M-Pesa Reference Code</label>
+                  <input type="text" id="mpesaRefJob" name="mpesaRef" placeholder="e.g., ABC123XYZ" maxlength="20" />
+                </div>
+
+                <div class="button-row">
+                  <button id="jobSaveBtn" type="submit" class="btn">Save Job</button>
+                  <button id="jobCancelBtn" type="button" class="btn btn-ghost" hidden>
+                    Cancel Edit
+                  </button>
+                </div>
+                <p id="jobStatus" class="helper"></p>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Pending Jobs</h3>
+              <div id="pendingJobs" class="admin-list"></div>
+            </div>
+
+            <div class="card">
+              <h3>Approved Jobs</h3>
+              <div id="approvedJobs" class="admin-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="adminCvs" class="admin-section">
+          <div class="admin-grid section">
+            <div class="card">
+              <h3>CVs Generated</h3>
+              <div id="cvList" class="admin-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="adminLetters" class="admin-section">
+          <div class="admin-grid section">
+            <div class="card">
+              <h3>Cover Letters</h3>
+              <div id="letterList" class="admin-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="adminPortfolios" class="admin-section">
+          <div class="admin-grid section">
+            <div class="card">
+              <h3>Portfolios</h3>
+              <div id="portfolioList" class="admin-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="adminQr" class="admin-section">
+          <div class="admin-grid section">
+            <div class="card">
+              <h3>QR Codes Created</h3>
+              <div id="qrList" class="admin-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="adminPayments" class="admin-section">
+          <div class="admin-grid section">
+            <div class="card">
+              <h3>M-Pesa Payments</h3>
+              <div id="paymentList" class="admin-list"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Copyright (c) 2026 JobSeekAfrica. All rights reserved.</p>
+        <p>Contact: 0115613332/0788160688</p>
+      </div>
+    </footer>
+
+    <script>
+      // window.__ENV__ can be injected via env.js or hosting environment.
+      window.__ENV__ = window.__ENV__ || {};
+    </script>
+    <!-- Optional: create env.js from .env and include it before the app scripts -->
+    <script src="env.js" defer></script>
+    <script src="js/nav.js" defer></script>
+    <script type="module" src="js/admin.js"></script>
+  </body>
+</html>
+
