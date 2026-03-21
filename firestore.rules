@@ -78,6 +78,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Smart applications: users can submit and view their own applications, admins manage updates.
+    match /applications/{applicationId} {
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
     // Admin allowlist (managed in Firebase Console).
     match /admins/{adminId} {
       allow read: if request.auth != null && request.auth.uid == adminId;

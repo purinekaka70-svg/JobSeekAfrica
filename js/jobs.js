@@ -8,9 +8,11 @@ import {
   firebaseReady,
   getAuthMetadata,
   onAuthChange,
+  recordPayment,
   signInUser,
   signUpUser,
   signOutUser,
+  verifyPaymentAccess,
   collection,
   addDoc,
   setDoc,
@@ -41,7 +43,54 @@ const postJobLoginPassword = document.getElementById("postJobLoginPassword");
 const postJobLoginStatus = document.getElementById("postJobLoginStatus");
 const postJobLogout = document.getElementById("postJobLogout");
 const postJobCreateAccount = document.getElementById("postJobCreateAccount");
+const smartApplyForm = document.getElementById("smartApplyForm");
+const smartApplyMeta = document.getElementById("smartApplyMeta");
+const smartApplyFullName = document.getElementById("smartApplyFullName");
+const smartApplyEmail = document.getElementById("smartApplyEmail");
+const smartApplyPhone = document.getElementById("smartApplyPhone");
+const smartApplyPitch = document.getElementById("smartApplyPitch");
+const smartApplyStatus = document.getElementById("smartApplyStatus");
+const smartApplyCancel = document.getElementById("smartApplyCancel");
+const smartApplicationList = document.getElementById("smartApplicationList");
+const refreshApplicationsBtn = document.getElementById("refreshApplications");
 const env = window.__ENV__ || {};
+const LOCAL_CV_PROFILE_KEY = "jobseekafrica_cv_profile";
+const JOB_POSTING_PRICE = 500;
+const MATCH_UPGRADE_PRICE = 200;
+const CV_OPTIMIZATION_PRICE = 300;
+const COVER_LETTER_PRICE = 300;
+const MATCH_TARGET_SCORE = 90;
+const APPLICATION_REFRESH_MS = 45000;
+const APPLICATION_STATUS_LABELS = {
+  submitted: "Submitted",
+  under_review: "Under Review",
+  shortlisted: "Shortlisted",
+  interview: "Interview",
+  offer: "Offer",
+  hired: "Hired",
+  rejected: "Rejected"
+};
+const STUDENT_KEYWORD_STOP_WORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "from",
+  "that",
+  "this",
+  "your",
+  "will",
+  "have",
+  "into",
+  "role",
+  "jobs",
+  "job",
+  "work",
+  "kenya",
+  "student",
+  "fresh",
+  "graduate"
+]);
 
 const KENYA_COUNTIES = [
   "Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu",
@@ -112,6 +161,324 @@ let observer = null;
 let sentinel = null;
 let lastCareerjetError = "";
 let filterDebounce = null;
+let currentSmartApplyJob = null;
+
+function safeStorage() {
+  try {
+    return window.localStorage;
+  } catch (error) {
+    return null;
+  }
+}
+
+function readStoredCvProfile() {
+  const storage = safeStorage();
+  if (!storage) {
+    return null;
+  }
+  const raw = storage.getItem(LOCAL_CV_PROFILE_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+}
+
+function tokenizeStudentText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 2 && !STUDENT_KEYWORD_STOP_WORDS.has(part));
+}
+
+function isStudentRole(job) {
+  const type = String(job?.type || "").toLowerCase();
+  return (
+    type.includes("intern") ||
+    type.includes("attachment") ||
+    type.includes("graduate") ||
+    type.includes("entry")
+  );
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getCvMatch(job) {
+  const cvProfile = readStoredCvProfile();
+  if (!cvProfile) {
+    return {
+      score: 40,
+      hasProfile: false,
+      targetScore: MATCH_TARGET_SCORE
+    };
+  }
+
+  const cvTerms = new Set(
+    tokenizeStudentText(
+      [
+        cvProfile.fullName,
+        cvProfile.skills,
+        cvProfile.education,
+        cvProfile.experience
+      ]
+        .flat()
+        .join(" ")
+    )
+  );
+  const jobTerms = new Set(
+    tokenizeStudentText(
+      [
+        job.title,
+        job.company,
+        job.category,
+        job.type,
+        job.description,
+        job.location,
+        job.county
+      ].join(" ")
+    )
+  );
+
+  let overlap = 0;
+  jobTerms.forEach((term) => {
+    if (cvTerms.has(term)) {
+      overlap += 1;
+    }
+  });
+
+  const denominator = Math.max(3, Math.min(jobTerms.size || 1, 10));
+  const ratio = overlap / denominator;
+  const studentBonus = isStudentRole(job) ? 8 : 0;
+  const score = clamp(Math.round(38 + ratio * 50 + studentBonus), 40, 92);
+
+  return {
+    score,
+    hasProfile: true,
+    targetScore: MATCH_TARGET_SCORE
+  };
+}
+
+function buildPageUrl(path, params) {
+  const url = new URL(path, window.location.href);
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim()) {
+      url.searchParams.set(key, String(value).trim());
+    }
+  });
+  return url.toString();
+}
+
+function getLetterTemplateType(job) {
+  if (job.type === "Internship" || job.type === "Attachment") {
+    return "internship";
+  }
+  if (job.type === "Graduate Trainee") {
+    return "graduate";
+  }
+  if (job.type === "Entry-level") {
+    return "entry";
+  }
+  return "cover";
+}
+
+function buildCvUpgradeUrl(job) {
+  return buildPageUrl("cvbuilder.html", {
+    jobTitle: job.title,
+    company: job.company,
+    jobType: job.type,
+    applyUrl: job.applyUrl,
+    price: MATCH_UPGRADE_PRICE,
+    service: "match_upgrade",
+    targetScore: MATCH_TARGET_SCORE
+  });
+}
+
+function buildCvOptimizationUrl(job) {
+  return buildPageUrl("cvbuilder.html", {
+    jobTitle: job.title,
+    company: job.company,
+    jobType: job.type,
+    applyUrl: job.applyUrl,
+    price: CV_OPTIMIZATION_PRICE,
+    service: "cv_optimization",
+    targetScore: MATCH_TARGET_SCORE
+  });
+}
+
+function buildCoverLetterUrl(job) {
+  return buildPageUrl("coverletter.html", {
+    jobTitle: job.title,
+    company: job.company,
+    jobType: job.type,
+    applyUrl: job.applyUrl,
+    price: COVER_LETTER_PRICE,
+    service: "tailored_cover_letter",
+    templateType: getLetterTemplateType(job)
+  });
+}
+
+function isCareerjetSource(job) {
+  return String(job?.source || "").toLowerCase().includes("careerjet");
+}
+
+function canSmartApply(job) {
+  return Boolean(job?.fromFirestore && !isCareerjetSource(job));
+}
+
+function getApplicationStatusLabel(status) {
+  return APPLICATION_STATUS_LABELS[String(status || "").trim()] || "Submitted";
+}
+
+function setSmartApplyStatus(message, isError = false) {
+  if (!smartApplyStatus) {
+    return;
+  }
+  smartApplyStatus.textContent = message;
+  smartApplyStatus.style.color = isError ? "#b42318" : "";
+}
+
+function renderApplicationEmpty(message) {
+  if (!smartApplicationList) {
+    return;
+  }
+  smartApplicationList.innerHTML = "";
+  const empty = document.createElement("p");
+  empty.className = "helper";
+  empty.textContent = message;
+  smartApplicationList.appendChild(empty);
+}
+
+function formatApplicationDate(value) {
+  if (!value) {
+    return "Just now";
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Just now";
+  }
+  return date.toLocaleString("en-KE", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function prefillSmartApplyFields(job) {
+  const profile = readStoredCvProfile() || {};
+  if (smartApplyFullName && !smartApplyFullName.value.trim()) {
+    smartApplyFullName.value = profile.fullName || "";
+  }
+  if (smartApplyEmail && !smartApplyEmail.value.trim()) {
+    smartApplyEmail.value = profile.email || auth?.currentUser?.email || "";
+  }
+  if (smartApplyPhone && !smartApplyPhone.value.trim()) {
+    smartApplyPhone.value = profile.phone || "";
+  }
+  if (smartApplyPitch && !smartApplyPitch.value.trim()) {
+    smartApplyPitch.value = job
+      ? `I am interested in the ${job.title} role at ${job.company}. I have relevant skills and I am ready to move quickly.`
+      : "";
+  }
+}
+
+function openSmartApply(job) {
+  if (!smartApplyForm) {
+    return;
+  }
+  currentSmartApplyJob = job;
+  smartApplyForm.hidden = false;
+  const match = getCvMatch(job);
+  if (smartApplyMeta) {
+    smartApplyMeta.textContent = `${job.title} at ${job.company} | ${getDisplayLocation(job)} | CV match ${match.score}%`;
+  }
+  setSmartApplyStatus("");
+  prefillSmartApplyFields(job);
+  smartApplyForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeSmartApply() {
+  currentSmartApplyJob = null;
+  if (smartApplyForm) {
+    smartApplyForm.hidden = true;
+  }
+  setSmartApplyStatus("");
+}
+
+function renderSmartApplications(applications) {
+  if (!smartApplicationList) {
+    return;
+  }
+  smartApplicationList.innerHTML = "";
+  if (!applications.length) {
+    renderApplicationEmpty("No smart applications yet.");
+    return;
+  }
+
+  applications.forEach((application) => {
+    const item = document.createElement("div");
+    item.className = "admin-item";
+    item.innerHTML = `
+      <h4>${application.jobTitle || "Job Application"}</h4>
+      <p class="helper">${application.company || "Company"} | ${application.location || application.county || "Kenya"}</p>
+      <p class="helper"><strong>Status:</strong> ${getApplicationStatusLabel(application.status)}</p>
+      <p class="helper"><strong>Updated:</strong> ${formatApplicationDate(application.updatedAt || application.createdAt)}</p>
+      <p class="helper">${application.statusMessage || "We received your smart application and will post updates here."}</p>
+      ${
+        application.applyUrl
+          ? `<a href="${application.applyUrl}" target="_blank" rel="noopener noreferrer" class="read-more">Open job listing</a>`
+          : ""
+      }
+    `;
+    smartApplicationList.appendChild(item);
+  });
+}
+
+async function loadSmartApplications() {
+  if (!smartApplicationList) {
+    return;
+  }
+  if (!firebaseReady || !db) {
+    renderApplicationEmpty("Smart applications are unavailable until Firebase is configured.");
+    return;
+  }
+
+  try {
+    const authMeta = await getAuthMetadata();
+    const snapshot = await getDocs(
+      query(collection(db, "applications"), where("uid", "==", authMeta.uid))
+    );
+    const applications = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() || {};
+      const updatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt;
+      const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt;
+      applications.push({
+        id: docSnap.id,
+        ...data,
+        updatedAt,
+        createdAt
+      });
+    });
+    applications.sort((a, b) => {
+      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+    renderSmartApplications(applications);
+  } catch (error) {
+    console.error("Smart applications fetch error:", error);
+    renderApplicationEmpty("Unable to load smart application updates right now.");
+  }
+}
 
 function setPostJobLoginStatus(message, isError = false) {
   if (!postJobLoginStatus) return;
@@ -150,9 +517,11 @@ function updatePostJobAuthUI(user) {
     postJobLogout.hidden = !signedIn;
   }
   if (signedIn) {
-    setPostJobLoginStatus(`Signed in as ${user.email}. You can post jobs.`);
+    setPostJobLoginStatus(
+      `Signed in as ${user.email}. Pay KES ${JOB_POSTING_PRICE} and submit your company job.`
+    );
   } else {
-    setPostJobLoginStatus("Sign in to submit a job listing.");
+    setPostJobLoginStatus("Sign in, pay KES 500, and submit your company job listing.");
   }
 }
 
@@ -197,7 +566,11 @@ function lockJobs(message) {
 function normalizeType(text) {
   if (!text) return "Full-time";
   const t = text.toLowerCase();
+  if (t.includes("attachment")) return "Attachment";
   if (t.includes("intern")) return "Internship";
+  if (t.includes("entry") || t.includes("fresh graduate") || t.includes("junior")) {
+    return "Entry-level";
+  }
   if (t.includes("part")) return "Part-time";
   if (t.includes("contract")) return "Contract";
   if (t.includes("graduate") || t.includes("trainee")) return "Graduate Trainee";
@@ -278,6 +651,7 @@ function buildSearchText(job) {
   return [
     job.title,
     job.company,
+    job.category,
     job.description,
     job.location,
     job.county,
@@ -529,6 +903,10 @@ async function fetchFromFirestoreJobs() {
         county: data.county || normalizeCounty(data.location),
         applyUrl: normalizeApplyUrl(data.applyUrl),
         type: normalizeType(data.type || data.title),
+        category: data.category || "",
+        contactEmail: data.contactEmail || "",
+        postedByEmail: data.postedByEmail || "",
+        fromFirestore: true,
         description: data.description ? String(data.description).slice(0, 200) + "..." : "",
         source: data.source || "Firestore",
         createdAt,
@@ -613,30 +991,42 @@ function renderNextBatch() {
   nextBatch.forEach(job => {
     const div = document.createElement("div");
     div.className = "job-card";
-    const isInternship = job.type === "Internship";
-    if (isInternship) div.classList.add("highlight");
+    const isStudentListing = isStudentRole(job);
+    const smartApplyEnabled = canSmartApply(job);
+    if (isStudentListing) div.classList.add("highlight");
     const applyUrl = job.applyUrl || normalizeApplyUrl(job.url || job.redirect_url);
     const applyTarget = getApplyTarget();
-    const applyButton = applyUrl
-      ? `<a href="${applyUrl}" target="${applyTarget}" rel="noopener noreferrer" class="btn" aria-label="Apply for ${job.title}">Apply</a>`
-      : `<span class="btn btn-ghost" aria-disabled="true">Apply</span>`;
+    const match = getCvMatch(job);
+    const smartApplyButton = smartApplyEnabled
+      ? `<button type="button" class="btn btn-ghost" data-action="smart-apply" data-job-id="${job.id}">Smart Apply in JobSeekAfrica</button>`
+      : "";
+    const applyButton = `<a href="${buildCvUpgradeUrl(job)}" class="btn" aria-label="Apply with optimized CV for ${job.title}">Apply with optimized CV</a>`;
+    const coverLetterButton = `<a href="${buildCoverLetterUrl(job)}" class="btn btn-secondary" aria-label="Generate tailored cover letter for ${job.title}">Tailored cover letter</a>`;
+    const companyListingLink = applyUrl
+      ? `<a href="${applyUrl}" target="${applyTarget}" rel="noopener noreferrer" class="job-source-link">Open company listing</a>`
+      : `<span class="job-source-link muted">Listing link unavailable</span>`;
     if (applyUrl) {
       div.dataset.applyUrl = applyUrl;
       div.tabIndex = 0;
       div.setAttribute("role", "link");
       div.setAttribute("aria-label", `Open application for ${job.title}`);
     }
-  const tags = [];
-  if (job.type) {
-    tags.push(`<span class="tag ${isInternship ? "tag-highlight" : ""}">${job.type}</span>`);
-  }
-  const locationTag = getLocationTag(job);
-  if (locationTag) {
-    tags.push(`<span class="tag tag-county">${locationTag}</span>`);
-  }
-  if (job.source) {
-    tags.push(`<span class="tag">${job.source}</span>`);
-  }
+    const tags = [];
+    if (job.type) {
+      tags.push(
+        `<span class="tag ${isStudentListing ? "tag-highlight" : ""}">${job.type}</span>`
+      );
+    }
+    const locationTag = getLocationTag(job);
+    if (locationTag) {
+      tags.push(`<span class="tag tag-county">${locationTag}</span>`);
+    }
+    if (job.source) {
+      tags.push(`<span class="tag">${job.source}</span>`);
+    }
+    if (isStudentListing) {
+      tags.push(`<span class="tag">Students & Fresh Grads</span>`);
+    }
     const tagsMarkup = tags.length ? `<div class="job-tags">${tags.join("")}</div>` : "";
     div.innerHTML = `
       ${tagsMarkup}
@@ -644,7 +1034,18 @@ function renderNextBatch() {
       <p class="job-meta"><strong>Company:</strong> ${job.company}</p>
       <p class="job-meta"><strong>Location:</strong> ${getDisplayLocation(job)}</p>
       <p>${job.description || ""}</p>
-      ${applyButton}
+      <div class="job-match-box">
+        <p class="job-match-score"><strong>${match.hasProfile ? `Your CV is ${match.score}% match.` : "No saved CV yet. Start at 40% match."}</strong></p>
+        <p class="helper">${match.score >= MATCH_TARGET_SCORE ? "Your profile is ready. Use the smart apply flow and then open the company listing." : `Improve to ${MATCH_TARGET_SCORE}% for KES ${MATCH_UPGRADE_PRICE}.`}</p>
+      </div>
+      <div class="job-action-stack">
+        ${smartApplyButton}
+        ${applyButton}
+        ${coverLetterButton}
+        ${companyListingLink}
+      </div>
+      <p class="helper">${smartApplyEnabled ? "Apply inside JobSeekAfrica and track live status updates from this page." : "Live in-site Smart Apply is available on direct company listings posted inside JobSeekAfrica."}</p>
+      <p class="helper">Need a full rewrite? <a href="${buildCvOptimizationUrl(job)}">Optimize my CV for this job - KES ${CV_OPTIMIZATION_PRICE}</a></p>
     `;
     jobsList.appendChild(div);
     displayedJobs.push(job);
@@ -809,6 +1210,15 @@ fetchJobs();
 if (jobsList) {
   jobsList.addEventListener("click", (event) => {
     const target = event.target;
+    const smartApplyTrigger = target.closest("button[data-action='smart-apply']");
+    if (smartApplyTrigger) {
+      const jobId = smartApplyTrigger.dataset.jobId;
+      const selectedJob = allJobs.find((job) => String(job.id || "") === String(jobId || ""));
+      if (selectedJob) {
+        openSmartApply(selectedJob);
+      }
+      return;
+    }
     if (target.closest("a, button")) {
       return;
     }
@@ -857,8 +1267,11 @@ async function handlePostJob(e) {
     return;
   }
 
-  // Posting a job is free (no payment required).
   const formData = new FormData(postJobForm);
+  const companyName = formData.get("company")?.trim() || "";
+  const jobTitle = formData.get("title")?.trim() || "";
+  const paymentPhone = formData.get("paymentPhone")?.trim() || "";
+  const paymentRef = normalizeMpesaRef(formData.get("mpesaRef"));
 
   if (!firebaseReady || !db) {
     if (postJobMessage) postJobMessage.textContent = "Service unavailable (DB config missing).";
@@ -868,24 +1281,58 @@ async function handlePostJob(e) {
   const btn = postJobForm.querySelector("button[type='submit']");
   if (btn) btn.disabled = true;
   if (postJobMessage) {
-    postJobMessage.textContent = "Submitting job...";
+    postJobMessage.textContent = "Saving payment and submitting job...";
     postJobMessage.style.color = "";
   }
 
   try {
+    if (!paymentPhone) {
+      throw new Error("Enter the company M-Pesa phone number used for payment.");
+    }
+    if (!paymentRef) {
+      throw new Error("Enter the M-Pesa reference for the KES 500 company posting fee.");
+    }
+
+    await recordPayment(paymentRef, "job_posting", {
+      amount: JOB_POSTING_PRICE,
+      phone: paymentPhone,
+      company: companyName,
+      jobTitle,
+      metadata: {
+        company: companyName,
+        jobTitle,
+        type: "company_posting_fee"
+      }
+    });
+
+    const paymentAccess = await verifyPaymentAccess({
+      requiredAmount: JOB_POSTING_PRICE,
+      allowedSources: ["job_posting"]
+    });
+    if (!paymentAccess.ok) {
+      throw new Error(
+        paymentAccess.error || "Company posting payment not found. Save the M-Pesa reference first."
+      );
+    }
+
     const authMeta = await getAuthMetadata();
     const jobData = {
-      title: formData.get("title")?.trim(),
-      company: formData.get("company")?.trim(),
+      title: jobTitle,
+      company: companyName,
       location: formData.get("location")?.trim(),
       county: formData.get("county")?.trim() || "",
-      type: formData.get("type") || "Full-time",
-      category: formData.get("category") || "General",
+      type: formData.get("type") || "Graduate Trainee",
+      category: formData.get("category") || "Students & Graduates",
       description: formData.get("description")?.trim(),
       applyUrl: normalizeApplyUrl(formData.get("applyUrl")?.trim()),
-      contactEmail: formData.get("email")?.trim(), // Contact email for internal use
-      approved: false, // User posts require admin approval
-      source: "Public Submission",
+      contactEmail: formData.get("email")?.trim() || currentUser.email,
+      postedByEmail: currentUser.email,
+      approved: false,
+      source: "Company Submission",
+      paymentRef,
+      paymentPhone,
+      paymentAmount: JOB_POSTING_PRICE,
+      paymentStatus: "submitted",
       uid: authMeta.uid,
       isAnonymous: authMeta.isAnonymous,
       authProvider: authMeta.authProvider,
@@ -903,8 +1350,9 @@ async function handlePostJob(e) {
     await addDoc(collection(db, "jobs"), jobData);
 
     if (postJobMessage) {
-      postJobMessage.textContent = "Job submitted! It will appear after admin approval.";
-      postJobMessage.style.color = "#027a48"; // Green success color
+      postJobMessage.textContent =
+        "Company job submitted with the KES 500 posting fee. It will appear after admin review.";
+      postJobMessage.style.color = "#027a48";
     }
     postJobForm.reset();
   } catch (err) {
@@ -918,8 +1366,92 @@ async function handlePostJob(e) {
   }
 }
 
+async function submitSmartApplication(event) {
+  event.preventDefault();
+  if (!smartApplyForm || !currentSmartApplyJob) {
+    return;
+  }
+  if (!firebaseReady || !db) {
+    setSmartApplyStatus("Smart application service is unavailable right now.", true);
+    return;
+  }
+
+  const applicantName = smartApplyFullName?.value?.trim() || "";
+  const applicantEmail = smartApplyEmail?.value?.trim() || "";
+  const applicantPhone = smartApplyPhone?.value?.trim() || "";
+  const pitch = smartApplyPitch?.value?.trim() || "";
+
+  if (!applicantName || !applicantEmail || !applicantPhone || !pitch) {
+    setSmartApplyStatus("Fill in your name, email, phone, and application pitch.", true);
+    return;
+  }
+
+  const submitBtn = smartApplyForm.querySelector("button[type='submit']");
+  if (submitBtn) {
+    submitBtn.disabled = true;
+  }
+  setSmartApplyStatus("Submitting your smart application...");
+
+  try {
+    const authMeta = await getAuthMetadata();
+    const match = getCvMatch(currentSmartApplyJob);
+    const cvProfile = readStoredCvProfile();
+
+    await addDoc(collection(db, "applications"), {
+      jobId: currentSmartApplyJob.id || "",
+      jobTitle: currentSmartApplyJob.title || "Job Application",
+      company: currentSmartApplyJob.company || "Company",
+      location: currentSmartApplyJob.location || currentSmartApplyJob.county || "Kenya",
+      county: currentSmartApplyJob.county || "",
+      applyUrl: currentSmartApplyJob.applyUrl || "",
+      jobSource: currentSmartApplyJob.source || "JobSeekAfrica",
+      companyContactEmail: currentSmartApplyJob.contactEmail || "",
+      postedByEmail: currentSmartApplyJob.postedByEmail || "",
+      applicantName,
+      applicantEmail,
+      applicantPhone,
+      pitch,
+      cvMatch: match.score,
+      cvSnapshot: cvProfile || null,
+      status: "submitted",
+      statusMessage: "Application received. We will update this status inside JobSeekAfrica.",
+      uid: authMeta.uid,
+      isAnonymous: authMeta.isAnonymous,
+      authProvider: authMeta.authProvider,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    setSmartApplyStatus(
+      currentSmartApplyJob.applyUrl
+        ? "Application submitted in JobSeekAfrica. Track updates below, then open the company listing to continue externally if needed."
+        : "Application submitted in JobSeekAfrica. Track updates below."
+    );
+    await loadSmartApplications();
+  } catch (error) {
+    console.error("Smart apply error:", error);
+    setSmartApplyStatus("Unable to submit your smart application right now.", true);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+    }
+  }
+}
+
 if (postJobForm) {
   postJobForm.addEventListener("submit", handlePostJob);
+}
+
+if (smartApplyForm) {
+  smartApplyForm.addEventListener("submit", submitSmartApplication);
+}
+
+if (smartApplyCancel) {
+  smartApplyCancel.addEventListener("click", closeSmartApply);
+}
+
+if (refreshApplicationsBtn) {
+  refreshApplicationsBtn.addEventListener("click", loadSmartApplications);
 }
 
 if (postJobLoginForm) {
@@ -938,7 +1470,7 @@ if (postJobLoginForm) {
     try {
       const user = await signInUser(email, password);
       updatePostJobAuthUI(user);
-      setPostJobLoginStatus("Signed in. You can now submit a job.");
+      setPostJobLoginStatus("Signed in. Enter the KES 500 M-Pesa payment details and submit.");
     } catch (error) {
       const code = error?.code || "";
       const message =
@@ -985,7 +1517,7 @@ if (postJobCreateAccount) {
         );
       }
       updatePostJobAuthUI(user);
-      setPostJobLoginStatus("Account created. You can now post a job.");
+      setPostJobLoginStatus("Account created. Pay KES 500 and submit your company job.");
     } catch (error) {
       const code = error?.code || "";
       const message =
@@ -1013,7 +1545,14 @@ if (postJobLogout) {
 if (onAuthChange) {
   onAuthChange((user) => {
     updatePostJobAuthUI(user);
+    loadSmartApplications();
   });
 }
 
 updatePostJobAuthUI(auth?.currentUser || null);
+loadSmartApplications();
+if (smartApplicationList) {
+  window.setInterval(() => {
+    loadSmartApplications();
+  }, APPLICATION_REFRESH_MS);
+}

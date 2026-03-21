@@ -16,14 +16,78 @@ const saveBtn = document.getElementById("saveLetterBtn");
 const downloadBtn = document.getElementById("downloadLetterBtn");
 const copyBtn = document.getElementById("copyLetterBtn");
 const regenerateBtn = document.getElementById("regenerateLetterBtn");
+const offerBanner = document.getElementById("letterOfferBanner");
 
+const DEFAULT_LETTER_PRICE = 100;
 let variationSeed = Date.now();
+const letterOfferContext = getLetterOfferContext();
 
 function setStatus(message) {
   if (!status) {
     return;
   }
   status.textContent = message;
+}
+
+function getLetterOfferContext() {
+  const params = new URLSearchParams(window.location.search);
+  const service = String(params.get("service") || "cover_letter").trim() || "cover_letter";
+  const rawPrice = Number(params.get("price"));
+  return {
+    service,
+    price: Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : DEFAULT_LETTER_PRICE,
+    jobTitle: String(params.get("jobTitle") || "").trim(),
+    company: String(params.get("company") || "").trim(),
+    jobType: String(params.get("jobType") || "").trim(),
+    applyUrl: String(params.get("applyUrl") || "").trim(),
+    templateType: String(params.get("templateType") || "").trim()
+  };
+}
+
+function getLetterPaymentOptions() {
+  if (letterOfferContext.price > DEFAULT_LETTER_PRICE || letterOfferContext.service !== "cover_letter") {
+    return {
+      requiredAmount: letterOfferContext.price,
+      allowedSources: [letterOfferContext.service]
+    };
+  }
+  return { requiredAmount: DEFAULT_LETTER_PRICE };
+}
+
+function prefillFromJobContext() {
+  if (!form) {
+    return;
+  }
+  if (letterOfferContext.jobTitle && !form.jobTitle.value.trim()) {
+    form.jobTitle.value = letterOfferContext.jobTitle;
+  }
+  if (letterOfferContext.company && !form.company.value.trim()) {
+    form.company.value = letterOfferContext.company;
+  }
+  if (letterOfferContext.templateType && form.templateType) {
+    form.templateType.value = letterOfferContext.templateType;
+  }
+}
+
+function showOfferBanner() {
+  if (!offerBanner) {
+    return;
+  }
+  if (!letterOfferContext.jobTitle && letterOfferContext.price <= DEFAULT_LETTER_PRICE) {
+    offerBanner.hidden = true;
+    return;
+  }
+
+  const roleLabel =
+    letterOfferContext.jobTitle && letterOfferContext.company
+      ? `Generating a tailored letter for ${letterOfferContext.jobTitle} at ${letterOfferContext.company}.`
+      : "Generate a stronger student-ready cover letter.";
+  const sourceLink = letterOfferContext.applyUrl
+    ? ` <a href="${letterOfferContext.applyUrl}" target="_blank" rel="noopener noreferrer">Open the original listing</a>.`
+    : "";
+
+  offerBanner.innerHTML = `<strong>Application Booster:</strong> ${roleLabel} Price: KES ${letterOfferContext.price}.${sourceLink}`;
+  offerBanner.hidden = false;
 }
 
 function splitList(text) {
@@ -275,13 +339,20 @@ async function saveLetter() {
     const ref = form.mpesaRef.value.trim();
     localStorage.setItem("mpesaRef", ref);
     try {
-      await recordPayment(ref, "cover_letter");
+      await recordPayment(ref, letterOfferContext.service, {
+        amount: letterOfferContext.price,
+        company: data.company || letterOfferContext.company,
+        jobTitle: data.jobTitle || letterOfferContext.jobTitle,
+        metadata: {
+          jobType: letterOfferContext.jobType || data.templateType
+        }
+      });
     } catch (e) {
       console.warn("Payment cloud save failed", e);
     }
   }
 
-  const access = await verifyPaymentAccess();
+  const access = await verifyPaymentAccess(getLetterPaymentOptions());
   if (!access.ok) {
     setStatus(access.error || "Enter a verified M-Pesa reference to continue.");
     return;
@@ -317,7 +388,7 @@ async function downloadPdf() {
     return;
   }
 
-  const access = await verifyPaymentAccess();
+  const access = await verifyPaymentAccess(getLetterPaymentOptions());
   if (!access.ok) {
     setStatus(access.error || "Enter a verified M-Pesa reference to continue.");
     return;
@@ -335,7 +406,7 @@ async function downloadPdf() {
 }
 
 async function copyLetter() {
-  const access = await verifyPaymentAccess();
+  const access = await verifyPaymentAccess(getLetterPaymentOptions());
   if (!access.ok) {
     setStatus(access.error || "Enter a verified M-Pesa reference to continue.");
     return;
@@ -363,6 +434,7 @@ function updatePreview() {
 }
 
 if (form && preview) {
+  prefillFromJobContext();
   form.addEventListener("input", updatePreview);
   if (saveBtn) saveBtn.addEventListener("click", saveLetter);
   if (downloadBtn) downloadBtn.addEventListener("click", downloadPdf);
@@ -374,5 +446,6 @@ if (form && preview) {
     });
   }
 
+  showOfferBanner();
   updatePreview();
 }

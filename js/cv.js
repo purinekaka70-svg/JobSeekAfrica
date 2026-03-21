@@ -21,6 +21,7 @@ const saveBtn = document.getElementById("saveCvBtn");
 const downloadBtn = document.getElementById("downloadPdfBtn");
 const generateQrBtn = document.getElementById("generateQrBtn");
 const copyLinkBtn = document.getElementById("copyLinkBtn");
+const offerBanner = document.getElementById("cvOfferBanner");
 const cvLinkInput = document.getElementById("cvLink");
 const cvQr = document.getElementById("cvQr");
 
@@ -40,14 +41,80 @@ const cvUiReady =
   previewExperience;
 
 const LAST_CV_LINK_KEY = "jobseekafrica_last_cv_link";
+const LOCAL_CV_PROFILE_KEY = "jobseekafrica_cv_profile";
+const DEFAULT_CV_PRICE = 100;
+const DEFAULT_TARGET_SCORE = 90;
 
 let currentCvId = null;
+const cvOfferContext = getCvOfferContext();
 
 function setStatus(message) {
   if (!status) {
     return;
   }
   status.textContent = message;
+}
+
+function safeStorage() {
+  try {
+    return window.localStorage;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getCvOfferContext() {
+  const params = new URLSearchParams(window.location.search);
+  const service = String(params.get("service") || "cv_builder").trim() || "cv_builder";
+  const rawPrice = Number(params.get("price"));
+  const rawTargetScore = Number(params.get("targetScore"));
+  return {
+    service,
+    price: Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : DEFAULT_CV_PRICE,
+    targetScore:
+      Number.isFinite(rawTargetScore) && rawTargetScore > 0
+        ? rawTargetScore
+        : DEFAULT_TARGET_SCORE,
+    jobTitle: String(params.get("jobTitle") || "").trim(),
+    company: String(params.get("company") || "").trim(),
+    jobType: String(params.get("jobType") || "").trim(),
+    applyUrl: String(params.get("applyUrl") || "").trim()
+  };
+}
+
+function getCvPaymentOptions() {
+  if (cvOfferContext.price > DEFAULT_CV_PRICE || cvOfferContext.service !== "cv_builder") {
+    return {
+      requiredAmount: cvOfferContext.price,
+      allowedSources: [cvOfferContext.service]
+    };
+  }
+  return { requiredAmount: DEFAULT_CV_PRICE };
+}
+
+function showOfferBanner() {
+  if (!offerBanner) {
+    return;
+  }
+  if (!cvOfferContext.jobTitle && cvOfferContext.price <= DEFAULT_CV_PRICE) {
+    offerBanner.hidden = true;
+    return;
+  }
+
+  const roleLabel =
+    cvOfferContext.jobTitle && cvOfferContext.company
+      ? `Optimizing your CV for ${cvOfferContext.jobTitle} at ${cvOfferContext.company}.`
+      : "Build a stronger student CV for your next application.";
+  const pricingLabel =
+    cvOfferContext.service === "match_upgrade"
+      ? `Target match: ${cvOfferContext.targetScore}%. Price: KES ${cvOfferContext.price}.`
+      : `This CV flow is priced at KES ${cvOfferContext.price}.`;
+  const sourceLink = cvOfferContext.applyUrl
+    ? ` <a href="${cvOfferContext.applyUrl}" target="_blank" rel="noopener noreferrer">Open the original listing</a>.`
+    : "";
+
+  offerBanner.innerHTML = `<strong>Smart Apply:</strong> ${roleLabel} ${pricingLabel}${sourceLink}`;
+  offerBanner.hidden = false;
 }
 
 // Split comma/newline lists into an array.
@@ -96,6 +163,14 @@ function getFormData() {
     education: splitList(form.education.value),
     experience: splitList(form.experience.value)
   };
+}
+
+function persistCvDraft(data) {
+  const storage = safeStorage();
+  if (!storage) {
+    return;
+  }
+  storage.setItem(LOCAL_CV_PROFILE_KEY, JSON.stringify(data));
 }
 
 function applyFormData(data) {
@@ -147,7 +222,11 @@ function buildCvLink(cvId) {
 }
 
 function persistCvLink(link) {
-  localStorage.setItem(LAST_CV_LINK_KEY, link);
+  const storage = safeStorage();
+  if (!storage) {
+    return;
+  }
+  storage.setItem(LAST_CV_LINK_KEY, link);
 }
 
 // Save CV to Firestore so it can be shared and approved.
@@ -166,19 +245,28 @@ async function saveCv() {
   const mpesaRef = form.mpesaRef ? form.mpesaRef.value.trim() : "";
   if (mpesaRef) {
     try {
-      await recordPayment(mpesaRef, "cv_builder");
+      await recordPayment(mpesaRef, cvOfferContext.service, {
+        amount: cvOfferContext.price,
+        company: cvOfferContext.company,
+        jobTitle: cvOfferContext.jobTitle,
+        metadata: {
+          jobType: cvOfferContext.jobType,
+          targetScore: cvOfferContext.targetScore
+        }
+      });
     } catch (error) {
       console.warn("Payment save warning:", error);
     }
   }
 
-  const access = await verifyPaymentAccess();
+  const access = await verifyPaymentAccess(getCvPaymentOptions());
   if (!access.ok) {
     setStatus(access.error || "Enter a verified M-Pesa reference to continue.");
     return;
   }
 
   try {
+    persistCvDraft(data);
     const docRef = await addDoc(collection(db, "cvs"), {
       ...data,
       uid: authMeta.uid,
@@ -252,11 +340,13 @@ async function downloadPdf() {
   if (!approved) {
     return;
   }
-  const access = await verifyPaymentAccess();
+  const access = await verifyPaymentAccess(getCvPaymentOptions());
   if (!access.ok && access.status !== "bypassed") {
     setStatus(access.error || "Enter a verified M-Pesa reference to continue.");
     return;
   }
+
+  persistCvDraft(data);
 
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF();
@@ -306,7 +396,7 @@ async function generateQr() {
     setStatus("Save your CV first to generate a shareable link.");
     return;
   }
-  const access = await verifyPaymentAccess();
+  const access = await verifyPaymentAccess(getCvPaymentOptions());
   if (!access.ok && access.status !== "bypassed") {
     setStatus(access.error || "Enter a verified M-Pesa reference to continue.");
     return;
@@ -369,6 +459,7 @@ async function loadCvFromQuery() {
     currentCvId = cvId;
     applyFormData(data);
     updatePreview(data);
+    persistCvDraft(data);
     const link = buildCvLink(cvId);
     cvLinkInput.value = link;
     persistCvLink(link);
@@ -380,12 +471,18 @@ async function loadCvFromQuery() {
 }
 
 if (cvUiReady) {
-  form.addEventListener("input", () => updatePreview(getFormData()));
+  form.addEventListener("input", () => {
+    const data = getFormData();
+    persistCvDraft(data);
+    updatePreview(data);
+  });
   if (saveBtn) saveBtn.addEventListener("click", saveCv);
   if (downloadBtn) downloadBtn.addEventListener("click", downloadPdf);
   if (generateQrBtn) generateQrBtn.addEventListener("click", generateQr);
   if (copyLinkBtn) copyLinkBtn.addEventListener("click", copyLink);
 
+  showOfferBanner();
+  persistCvDraft(getFormData());
   updatePreview(getFormData());
   loadCvFromQuery();
 }

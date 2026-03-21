@@ -51,48 +51,113 @@
     <div class="card till-card">
       <p><strong>Pay once: 100 KSH gives access to all services.</strong></p>
       <p><strong>M-Pesa Till Number: 7312380</strong></p>
-      <p>After payment, enter your M-Pesa reference to continue.</p>
+      <p>Optional Smart Apply and company posting packages are shown inside each workflow.</p>
     </div>
   </div>
 </section>
 
     <main class="container page">
       <section class="page-header fade-up" style="--delay: 0.1s">
-        <h1>Job and Internship Listings in Kenya</h1>
+        <h1>Jobs for Students & Fresh Graduates in Kenya</h1>
         <p>
-          Real jobs and internships countrywide with regularly updated listings.
-          Search by category or county.
+          Find internships, attachments, graduate trainee roles, and entry-level jobs across Kenya.
+          Use Smart Apply to turn each listing into a paid application upgrade.
         </p>
         <p class="helper">
-          Use the county dropdown to browse opportunities across Kenya.
+          Build a stronger application before you open the company listing.
         </p>
         <div class="button-row">
           <button id="refreshJobs" class="btn">Refresh Listings</button>
         </div>
         <p id="jobsStatus" class="helper"></p>
-        <p class="helper">Internship roles are highlighted. Click Apply or the job card to open the full listing.</p>
+        <p class="helper">Student-focused roles are highlighted. Use Smart Apply or open the company listing directly from each card.</p>
+      </section>
+
+      <section class="section fade-up" style="--delay: 0.12s">
+        <div class="grid-3">
+          <div class="card feature-card">
+            <h3>Application Booster</h3>
+            <p>Optimize my CV for this job for KES 300 and package it around one target role.</p>
+          </div>
+          <div class="card feature-card">
+            <h3>Smart Apply</h3>
+            <p>Start at a 40% match, improve to 90% for KES 200, then apply with a stronger CV.</p>
+          </div>
+          <div class="card feature-card">
+            <h3>Tailored Letter</h3>
+            <p>Auto-generate a tailored cover letter for KES 300 using the role and company from the job card.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section fade-up" style="--delay: 0.14s">
+        <div class="grid-2">
+          <form id="smartApplyForm" class="card form-card" hidden>
+            <h3>Smart Application</h3>
+            <p id="smartApplyMeta" class="helper"></p>
+
+            <label for="smartApplyFullName">Full Name</label>
+            <input id="smartApplyFullName" name="fullName" type="text" placeholder="Your full name" required />
+
+            <label for="smartApplyEmail">Email</label>
+            <input id="smartApplyEmail" name="email" type="email" placeholder="you@example.com" required />
+
+            <label for="smartApplyPhone">Phone</label>
+            <input id="smartApplyPhone" name="phone" type="tel" placeholder="+254 700 000 000" required />
+
+            <label for="smartApplyPitch">Why are you a good fit?</label>
+            <textarea
+              id="smartApplyPitch"
+              name="pitch"
+              placeholder="Highlight your skills, availability, projects, and why this role fits you."
+              required
+            ></textarea>
+
+            <div class="button-row">
+              <button type="submit" class="btn">Submit Smart Application</button>
+              <button id="smartApplyCancel" type="button" class="btn btn-ghost">Cancel</button>
+            </div>
+            <p id="smartApplyStatus" class="helper"></p>
+          </form>
+
+          <div class="card">
+            <h3>My Smart Applications</h3>
+            <p class="helper">
+              Submit inside JobSeekAfrica and track live updates like Submitted, Under Review,
+              Shortlisted, Interview, or Rejected.
+            </p>
+            <div class="button-row">
+              <button id="refreshApplications" class="btn btn-ghost" type="button">
+                Refresh Updates
+              </button>
+            </div>
+            <div id="smartApplicationList" class="admin-list"></div>
+          </div>
+        </div>
       </section>
 
       <section class="section fade-up" style="--delay: 0.15s">
         <div class="card filter-card">
-          <h3>Search and Filter</h3>
+          <h3>Search Student Opportunities</h3>
           <div class="filter-grid">
             <div>
               <label for="searchInput">Search</label>
-              <input id="searchInput" type="text" placeholder="e.g., marketing intern" />
+              <input id="searchInput" type="text" placeholder="e.g., attachment, graduate trainee, intern" />
               <p class="helper">Search by title, company, category, or county.</p>
             </div>
             <div>
               <label for="categoryFilter">Category / Type</label>
               <select id="categoryFilter">
                 <option value="">All categories</option>
+                <option value="Attachment">Attachment</option>
                 <option value="Internship">Internship</option>
                 <option value="Graduate Trainee">Graduate Trainee</option>
+                <option value="Entry-level">Entry-level</option>
                 <option value="Full-time">Full-time</option>
                 <option value="Part-time">Part-time</option>
                 <option value="Contract">Contract</option>
               </select>
-              <p class="helper">Pick a category or a type like Internship, Full-time, or Part-time.</p>
+              <p class="helper">Lead with student roles like Attachment, Internship, and Graduate Trainee.</p>
             </div>
             <div>
               <label for="countyFilter">County</label>
@@ -102,7 +167,7 @@
               <p class="helper">Select a county or Nationwide to see local listings.</p>
             </div>
             <div class="notice">
-              All jobs appear by default. Internships are highlighted for jobseekers and students.
+              Smart Apply starts from a baseline CV match and upgrades the application flow before you visit the company listing.
             </div>
           </div>
           <div class="button-row">
@@ -228,7 +293,7 @@
               <p><strong>Company:</strong> ${job.company || "Company"}</p>
               <p><strong>Location:</strong> ${location}</p>
               <p>${job.description || ""}</p>
-              ${applyUrl ? `<a href="${applyUrl}" target="_blank" rel="noopener noreferrer" class="btn">Apply</a>` : ""}
+              ${applyUrl ? `<a href="${applyUrl}" target="_blank" rel="noopener noreferrer" class="btn">Open company listing</a>` : ""}
             `;
             jobsList.appendChild(div);
           });
@@ -240,4 +305,3 @@
     </script>
   </body>
 </html>
-

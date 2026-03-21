@@ -34,6 +34,19 @@ const PAYMENT_TTL_MS = Number.isFinite(PAYMENT_TTL_MINUTES)
   : 10 * 60 * 1000;
 const LOCAL_PAYMENT_TS_KEY = "jobseekafrica_payment_ts";
 const LOCAL_PAYMENT_REF_KEY = "jobseekafrica_payment_ref";
+const LOCAL_PAYMENT_AMOUNT_KEY = "jobseekafrica_payment_amount";
+const LOCAL_PAYMENT_SOURCE_KEY = "jobseekafrica_payment_source";
+const SERVICE_PRICE_MAP = {
+  general: 100,
+  cv_builder: 100,
+  cover_letter: 100,
+  portfolio_builder: 100,
+  qr_generator: 100,
+  match_upgrade: 200,
+  cv_optimization: 300,
+  tailored_cover_letter: 300,
+  job_posting: 500
+};
 
 // Firebase configuration (env.js overrides the defaults below)
 const defaultConfig = {
@@ -110,22 +123,97 @@ function safeStorage() {
   }
 }
 
-function storeLocalPayment(refCode) {
+function normalizePaymentSource(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizePaymentAmount(value, fallback = 100) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric;
+  }
+  return fallback;
+}
+
+function getServicePrice(service = "general") {
+  const source = normalizePaymentSource(service) || "general";
+  return SERVICE_PRICE_MAP[source] || 100;
+}
+
+function normalizeAllowedSources(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => normalizePaymentSource(item))
+    .filter(Boolean);
+}
+
+function describePaymentRequirement(requiredAmount) {
+  if (requiredAmount >= 500) {
+    return `a KES ${requiredAmount} company posting payment`;
+  }
+  if (requiredAmount >= 300) {
+    return `a KES ${requiredAmount} premium application upgrade`;
+  }
+  if (requiredAmount >= 200) {
+    return `a KES ${requiredAmount} CV match upgrade`;
+  }
+  return `a KES ${requiredAmount} payment`;
+}
+
+function paymentMatchesRequirements(payment, requiredAmount, allowedSources) {
+  const paymentAmount = normalizePaymentAmount(
+    payment?.amount,
+    getServicePrice(payment?.source)
+  );
+  const paymentSource = normalizePaymentSource(payment?.source);
+  if (paymentAmount < requiredAmount) {
+    return false;
+  }
+  if (allowedSources.length && !allowedSources.includes(paymentSource)) {
+    return false;
+  }
+  return true;
+}
+
+function getLocalPaymentCache() {
+  const storage = safeStorage();
+  if (!storage) return null;
+  const rawTs = storage.getItem(LOCAL_PAYMENT_TS_KEY);
+  if (!rawTs) return null;
+
+  const timestamp = Number(rawTs);
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+
+  return {
+    timestamp,
+    refCode: storage.getItem(LOCAL_PAYMENT_REF_KEY) || "",
+    amount: normalizePaymentAmount(
+      storage.getItem(LOCAL_PAYMENT_AMOUNT_KEY),
+      getServicePrice(storage.getItem(LOCAL_PAYMENT_SOURCE_KEY))
+    ),
+    source: normalizePaymentSource(storage.getItem(LOCAL_PAYMENT_SOURCE_KEY) || "general")
+  };
+}
+
+function storeLocalPayment(refCode, options = {}) {
   const storage = safeStorage();
   if (!storage) return;
+  const source = normalizePaymentSource(options.source || options.service || "general") || "general";
+  const amount = normalizePaymentAmount(options.amount, getServicePrice(source));
   storage.setItem(LOCAL_PAYMENT_TS_KEY, String(Date.now()));
   if (refCode) {
     storage.setItem(LOCAL_PAYMENT_REF_KEY, String(refCode).trim());
   }
+  storage.setItem(LOCAL_PAYMENT_AMOUNT_KEY, String(amount));
+  storage.setItem(LOCAL_PAYMENT_SOURCE_KEY, source);
 }
 
 function getLocalPaymentTimestamp() {
-  const storage = safeStorage();
-  if (!storage) return null;
-  const raw = storage.getItem(LOCAL_PAYMENT_TS_KEY);
-  if (!raw) return null;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : null;
+  return getLocalPaymentCache()?.timestamp || null;
 }
 
 function getLocalPaymentRemainingMs() {
@@ -238,32 +326,66 @@ const MPESA_VERIFY_ENDPOINT =
  * Helper to save payment info consistently to the 'payments' collection
  * so it shows up in the Admin Panel.
  */
-async function recordPayment(refCode, service = "general") {
+async function recordPayment(refCode, service = "general", options = {}) {
   if (!firebaseReady || !db) return;
   try {
     const authMeta = await getAuthMetadata();
-    await addDoc(collection(db, "payments"), {
+    const source = normalizePaymentSource(service) || "general";
+    const amount = normalizePaymentAmount(options.amount, getServicePrice(source));
+    const payload = {
       refCode: String(refCode).trim(),
-      amount: 100,
-      currency: "KES",
-      source: service,
-      status: "pending",
+      amount,
+      currency: options.currency || "KES",
+      source,
+      status: options.status || "pending",
       uid: authMeta.uid,
       isAnonymous: authMeta.isAnonymous,
       authProvider: authMeta.authProvider,
       email: authMeta.email,
       createdAt: serverTimestamp()
+    };
+
+    if (options.phone) {
+      payload.phone = String(options.phone).trim();
+    }
+    if (options.company) {
+      payload.company = String(options.company).trim();
+    }
+    if (options.jobTitle) {
+      payload.jobTitle = String(options.jobTitle).trim();
+    }
+    if (options.metadata && typeof options.metadata === "object") {
+      payload.metadata = options.metadata;
+    }
+
+    await addDoc(collection(db, "payments"), {
+      ...payload
     });
-    storeLocalPayment(refCode);
+    storeLocalPayment(refCode, { amount, source });
   } catch (e) {
     console.error("Error recording payment:", e);
   }
 }
 
-async function verifyPaymentAccess() {
+async function verifyPaymentAccess(options = {}) {
+  const requiredAmount = normalizePaymentAmount(options.requiredAmount, 100);
+  const allowedSources = normalizeAllowedSources(options.allowedSources);
+  const requirementLabel = describePaymentRequirement(requiredAmount);
   const localRemaining = getLocalPaymentRemainingMs();
-  if (localRemaining > 0) {
-    return { ok: true, status: "local_cache", remainingMs: localRemaining };
+  const localPayment = getLocalPaymentCache();
+  if (
+    !options.skipLocal &&
+    localRemaining > 0 &&
+    localPayment &&
+    paymentMatchesRequirements(localPayment, requiredAmount, allowedSources)
+  ) {
+    return {
+      ok: true,
+      status: "local_cache",
+      remainingMs: localRemaining,
+      amount: localPayment.amount,
+      source: localPayment.source
+    };
   }
 
   if (!firebaseReady || !db) {
@@ -280,8 +402,8 @@ async function verifyPaymentAccess() {
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
-      let latestPayment = null;
-      let latestTime = 0;
+      let latestMatchingPayment = null;
+      let latestMatchingTime = 0;
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data() || {};
         const createdAt = data.createdAt?.toDate
@@ -292,40 +414,59 @@ async function verifyPaymentAccess() {
         const time = createdAt && !Number.isNaN(createdAt.getTime())
           ? createdAt.getTime()
           : 0;
-        if (!latestPayment || time > latestTime) {
-          latestPayment = { data, createdAt };
-          latestTime = time;
+        if (
+          paymentMatchesRequirements(data, requiredAmount, allowedSources) &&
+          (!latestMatchingPayment || time > latestMatchingTime)
+        ) {
+          latestMatchingPayment = { data, createdAt };
+          latestMatchingTime = time;
         }
       });
 
-      if (!latestPayment) {
+      if (!latestMatchingPayment) {
         return {
           ok: false,
-          error: "No payment found for your account. Please save a payment reference on any service page to continue."
+          error: `No valid payment found for your account. Submit ${requirementLabel} to continue.`
         };
       }
 
-      const payment = latestPayment.data;
-      const createdAt = latestPayment.createdAt;
+      const payment = latestMatchingPayment.data;
+      const createdAt = latestMatchingPayment.createdAt;
       if (!createdAt || Number.isNaN(createdAt.getTime())) {
-        storeLocalPayment(payment.refCode);
-        return { ok: true, status: "firestore_payment_found" };
+        storeLocalPayment(payment.refCode, {
+          amount: payment.amount,
+          source: payment.source
+        });
+        return {
+          ok: true,
+          status: "firestore_payment_found",
+          amount: normalizePaymentAmount(payment.amount, getServicePrice(payment.source)),
+          source: normalizePaymentSource(payment.source)
+        };
       }
 
       const ageMs = Date.now() - createdAt.getTime();
       if (ageMs <= PAYMENT_TTL_MS) {
-        storeLocalPayment(payment.refCode);
-        return { ok: true, status: "firestore_recent_payment" };
+        storeLocalPayment(payment.refCode, {
+          amount: payment.amount,
+          source: payment.source
+        });
+        return {
+          ok: true,
+          status: "firestore_recent_payment",
+          amount: normalizePaymentAmount(payment.amount, getServicePrice(payment.source)),
+          source: normalizePaymentSource(payment.source)
+        };
       }
 
       return {
         ok: false,
-        error: "Payment expired. Please pay again to continue."
+        error: `${requirementLabel} expired. Please pay again to continue.`
       };
     }
     return {
       ok: false,
-      error: "No payment found for your account. Please save a payment reference on any service page to continue."
+      error: `No payment found for your account. Submit ${requirementLabel} to continue.`
     };
   } catch (error) {
     console.error("Payment verification error:", error);

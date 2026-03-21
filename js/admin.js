@@ -91,7 +91,9 @@ const jobCount = document.getElementById("jobCount");
 const qrCount = document.getElementById("qrCount");
 const letterCount = document.getElementById("letterCount");
 const portfolioCount = document.getElementById("portfolioCount");
+const applicationCount = document.getElementById("applicationCount");
 const paymentList = document.getElementById("paymentList");
+const applicationList = document.getElementById("applicationList");
 
 const refreshDataBtn = document.getElementById("refreshData");
 const syncJobsBtn = document.getElementById("syncJobs");
@@ -147,6 +149,15 @@ const editPanelStatus = document.getElementById("editPanelStatus");
 
 let editingJobId = null;
 let editingJobApproved = false;
+const APPLICATION_STATUSES = [
+  { value: "submitted", label: "Submitted" },
+  { value: "under_review", label: "Under Review" },
+  { value: "shortlisted", label: "Shortlisted" },
+  { value: "interview", label: "Interview" },
+  { value: "offer", label: "Offer" },
+  { value: "hired", label: "Hired" },
+  { value: "rejected", label: "Rejected" }
+];
 
 const KENYA_COUNTIES = [
   "Baringo",
@@ -402,12 +413,18 @@ function renderEmpty(container, message) {
   container.appendChild(empty);
 }
 
-function renderStats({ cvs, jobs, qrs, letters, portfolios }) {
+function getApplicationStatusLabel(status) {
+  const match = APPLICATION_STATUSES.find((item) => item.value === status);
+  return match ? match.label : "Submitted";
+}
+
+function renderStats({ cvs, jobs, qrs, letters, portfolios, applications }) {
   if (cvCount) cvCount.textContent = cvs.length;
   if (jobCount) jobCount.textContent = jobs.length;
   if (qrCount) qrCount.textContent = qrs.length;
   if (letterCount) letterCount.textContent = letters.length;
   if (portfolioCount) portfolioCount.textContent = portfolios.length;
+  if (applicationCount) applicationCount.textContent = applications.length;
 }
 
 function resetJobForm() {
@@ -461,6 +478,12 @@ function renderJobItem(job, container) {
   deadline.className = "helper";
   deadline.textContent = `Deadline: ${formatDate(job.deadline)}`;
 
+  const paymentMeta = document.createElement("p");
+  paymentMeta.className = "helper";
+  paymentMeta.textContent = `Payment: ${job.paymentAmount || 0} KES | ${job.paymentStatus || "n/a"} | ${
+    job.paymentRef || "No reference"
+  }`;
+
   const actions = document.createElement("div");
   actions.className = "admin-actions";
 
@@ -483,7 +506,7 @@ function renderJobItem(job, container) {
   deleteBtn.textContent = "Delete";
 
   actions.append(approveBtn, editBtn, deleteBtn);
-  item.append(title, meta, deadline, actions);
+  item.append(title, meta, deadline, paymentMeta, actions);
   container.appendChild(item);
 }
 
@@ -564,13 +587,15 @@ function renderPaymentItem(payment, container) {
   item.className = "admin-item";
 
   const title = document.createElement("h4");
-  title.textContent = payment.refCode || "Unknown Reference";
+  title.textContent = payment.refCode || payment.source || "Unknown Reference";
 
   const meta = document.createElement("p");
   meta.className = "helper";
-  meta.textContent = `${payment.phone || "No phone"} | ${payment.amount || 0} ${
-    payment.currency || "KES"
-  } | ${payment.status || "pending"} | ${formatDate(payment.createdAt)}`;
+  meta.textContent = `${payment.source || "general"} | ${payment.phone || "No phone"} | ${
+    payment.amount || 0
+  } ${payment.currency || "KES"} | ${payment.status || "pending"} | ${formatDate(
+    payment.createdAt
+  )}`;
 
   const actions = document.createElement("div");
   actions.className = "admin-actions";
@@ -596,6 +621,78 @@ function renderPaymentItem(payment, container) {
 
   actions.append(verifyBtn, editBtn, deleteBtn);
   item.append(title, meta, actions);
+  container.appendChild(item);
+}
+
+function renderApplicationItem(application, container) {
+  const item = document.createElement("div");
+  item.className = "admin-item";
+
+  const title = document.createElement("h4");
+  title.textContent = `${application.jobTitle || "Application"} - ${
+    application.company || "Company"
+  }`;
+
+  const meta = document.createElement("p");
+  meta.className = "helper";
+  meta.textContent = `${application.applicantName || "Applicant"} | ${
+    application.applicantEmail || "No email"
+  } | ${application.applicantPhone || "No phone"} | ${formatDate(
+    application.createdAt
+  )}`;
+
+  const status = document.createElement("p");
+  status.className = "helper";
+  status.textContent = `Status: ${getApplicationStatusLabel(application.status)} | Match: ${
+    application.cvMatch || 0
+  }%`;
+
+  const pitch = document.createElement("p");
+  pitch.className = "helper";
+  pitch.textContent = `Pitch: ${application.pitch || "No applicant pitch yet."}`;
+
+  const updateNote = document.createElement("p");
+  updateNote.className = "helper";
+  updateNote.textContent = `Latest update: ${
+    application.statusMessage || "No status update message yet."
+  }`;
+
+  const actions = document.createElement("div");
+  actions.className = "admin-actions";
+
+  const statusSelect = document.createElement("select");
+  statusSelect.className = "admin-status-select";
+  statusSelect.dataset.role = "application-status";
+  APPLICATION_STATUSES.forEach((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.value;
+    option.textContent = entry.label;
+    if ((application.status || "submitted") === entry.value) {
+      option.selected = true;
+    }
+    statusSelect.appendChild(option);
+  });
+
+  const updateBtn = document.createElement("button");
+  updateBtn.className = "btn btn-ghost btn-sm";
+  updateBtn.dataset.action = "update-application-status";
+  updateBtn.dataset.id = application.id;
+  updateBtn.textContent = "Update Status";
+
+  const editBtn = document.createElement("button");
+  editBtn.className = "btn btn-ghost btn-sm";
+  editBtn.dataset.action = "edit-application";
+  editBtn.dataset.id = application.id;
+  editBtn.textContent = "Edit";
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "btn btn-ghost btn-sm";
+  deleteBtn.dataset.action = "delete-application";
+  deleteBtn.dataset.id = application.id;
+  deleteBtn.textContent = "Delete";
+
+  actions.append(statusSelect, updateBtn, editBtn, deleteBtn);
+  item.append(title, meta, status, pitch, updateNote, actions);
   container.appendChild(item);
 }
 
@@ -665,7 +762,7 @@ function renderPortfolioItem(portfolio, container) {
   container.appendChild(item);
 }
 
-const USER_DATA_COLLECTIONS = ["cvs", "letters", "portfolios", "qrcodes", "payments"];
+const USER_DATA_COLLECTIONS = ["cvs", "letters", "portfolios", "qrcodes", "payments", "applications"];
 
 async function collectAnonymousDocs(collectionName) {
   const docMap = new Map();
@@ -934,7 +1031,7 @@ async function fetchSnapshotSafely(label, fetcher, container) {
 
 async function loadData() {
   if (!firebaseReady || !db) {
-    renderStats({ cvs: [], jobs: [], qrs: [], letters: [], portfolios: [] });
+    renderStats({ cvs: [], jobs: [], qrs: [], letters: [], portfolios: [], applications: [] });
     renderEmpty(pendingJobs, "Firebase is not configured.");
     renderEmpty(approvedJobs, "Firebase is not configured.");
     renderEmpty(cvList, "Firebase is not configured.");
@@ -942,6 +1039,7 @@ async function loadData() {
     if (letterList) renderEmpty(letterList, "Firebase is not configured.");
     if (portfolioList) renderEmpty(portfolioList, "Firebase is not configured.");
     if (paymentList) renderEmpty(paymentList, "Firebase is not configured.");
+    if (applicationList) renderEmpty(applicationList, "Firebase is not configured.");
     return;
   }
 
@@ -974,6 +1072,11 @@ async function loadData() {
     "Payments",
     () => getDocs(query(collection(db, "payments"), orderBy("createdAt", "desc"))),
     paymentList
+  );
+  const applicationSnapshot = await fetchSnapshotSafely(
+    "Applications",
+    () => getDocs(query(collection(db, "applications"), orderBy("createdAt", "desc"))),
+    applicationList
   );
 
   const cvs = [];
@@ -1012,7 +1115,14 @@ async function loadData() {
     );
   }
 
-  renderStats({ cvs, jobs, qrs, letters, portfolios });
+  const applications = [];
+  if (applicationSnapshot) {
+    applicationSnapshot.forEach((docSnap) =>
+      applications.push({ id: docSnap.id, ...docSnap.data() })
+    );
+  }
+
+  renderStats({ cvs, jobs, qrs, letters, portfolios, applications });
 
   if (jobSnapshot) {
     pendingJobs.innerHTML = "";
@@ -1026,6 +1136,7 @@ async function loadData() {
   }
   if (letterList && letterSnapshot) letterList.innerHTML = "";
   if (portfolioList && portfolioSnapshot) portfolioList.innerHTML = "";
+  if (applicationList && applicationSnapshot) applicationList.innerHTML = "";
 
   const pending = jobs.filter((job) => !job.approved);
   const approved = jobs.filter((job) => job.approved);
@@ -1082,6 +1193,16 @@ async function loadData() {
       renderEmpty(paymentList, "No payments yet.");
     } else {
       payments.forEach((payment) => renderPaymentItem(payment, paymentList));
+    }
+  }
+
+  if (applicationList && applicationSnapshot) {
+    if (!applications.length) {
+      renderEmpty(applicationList, "No smart applications yet.");
+    } else {
+      applications.forEach((application) =>
+        renderApplicationItem(application, applicationList)
+      );
     }
   }
 }
@@ -1540,6 +1661,49 @@ function handlePaymentListClick(event) {
   }
 }
 
+async function updateApplicationStatus(applicationId, nextStatus) {
+  if (!firebaseReady || !db) {
+    return;
+  }
+  if (!requireAdmin("Updating application status")) {
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "applications", applicationId), {
+      status: nextStatus,
+      statusMessage: `Status updated to ${getApplicationStatusLabel(nextStatus)}.`,
+      updatedAt: serverTimestamp()
+    });
+    await loadData();
+  } catch (error) {
+    console.error(error);
+    setMaintenanceStatus("Unable to update application status.");
+  }
+}
+
+function handleApplicationListClick(event) {
+  const target = event.target.closest("button");
+  if (!target) return;
+  const action = target.dataset.action;
+  const applicationId = target.dataset.id;
+  if (!applicationId || !action) return;
+
+  if (action === "update-application-status") {
+    const row = target.closest(".admin-item");
+    const statusSelect = row?.querySelector("select[data-role='application-status']");
+    const nextStatus = statusSelect?.value || "submitted";
+    updateApplicationStatus(applicationId, nextStatus);
+    return;
+  }
+  if (action === "edit-application") {
+    startEditRecord("applications", applicationId);
+    return;
+  }
+  if (action === "delete-application") {
+    deleteRecord("applications", applicationId);
+  }
+}
+
 function handleLetterListClick(event) {
   const target = event.target.closest("button");
   if (!target) return;
@@ -1784,6 +1948,9 @@ if (portfolioList) {
 }
 if (paymentList) {
   paymentList.addEventListener("click", handlePaymentListClick);
+}
+if (applicationList) {
+  applicationList.addEventListener("click", handleApplicationListClick);
 }
 if (editPanelSave) {
   editPanelSave.addEventListener("click", saveEditPanel);

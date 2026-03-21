@@ -586,8 +586,41 @@ code {
 }
 
 .job-card .btn {
-  margin-top: auto;
   align-self: flex-start;
+}
+
+.job-match-box {
+  margin-top: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(31, 138, 112, 0.08);
+  border: 1px solid rgba(31, 138, 112, 0.14);
+}
+
+.job-match-score {
+  font-size: 0.98rem;
+}
+
+.job-action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.job-action-stack .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.job-source-link {
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.muted {
+  color: var(--muted);
 }
 
 .job-meta {
@@ -835,6 +868,15 @@ code {
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 8px;
+}
+
+.admin-status-select {
+  min-width: 170px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  font-family: inherit;
 }
 
 .edit-panel {
@@ -1226,4 +1268,3 @@ code {
     display: block;
   }
 }
-
